@@ -2,8 +2,8 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>成語大師 (三國典故版)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>成語大師 (三國典故版) - 完整版</title>
     
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -19,19 +19,41 @@
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 
     <style>
-        body { font-family: "Noto Sans TC", system-ui, sans-serif; background-color: #fcf9f2; /* 米黃色背景更有歷史感 */ }
-        ::-webkit-scrollbar { width: 8px; }
+        /* 基礎設定 */
+        body { 
+            font-family: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif; 
+            background-color: #fcf9f2; 
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        /* 捲軸美化 */
+        ::-webkit-scrollbar { width: 10px; }
         ::-webkit-scrollbar-track { background: #f1f1f1; }
-        ::-webkit-scrollbar-thumb { background: #d4c4a8; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #d4c4a8; border-radius: 5px; }
         ::-webkit-scrollbar-thumb:hover { background: #b09b7c; }
         
+        /* 動畫定義 */
         @keyframes pop { 0% { transform: scale(1); } 50% { transform: scale(1.2); } 100% { transform: scale(1); } }
         .animate-pop { animation: pop 0.3s ease-in-out; }
-        @keyframes fade-in-up { 0% { opacity: 0; transform: translateY(10px); } 100% { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in-up { animation: fade-in-up 0.5s ease-out forwards; }
         
-        /* 圖片容器優化 */
-        .group-img:hover img { transform: scale(1.05); }
+        @keyframes fade-in-up { 
+            0% { opacity: 0; transform: translateY(20px); } 
+            100% { opacity: 1; transform: translateY(0); } 
+        }
+        .animate-fade-in-up { animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .animate-shake { animation: shake 0.4s ease-in-out; }
+        
+        /* 圖片容器互動 */
+        .group-img:hover img { transform: scale(1.08); }
+        
+        /* 禁止選取文字 (用於按鈕) */
+        .no-select { user-select: none; -webkit-user-select: none; }
     </style>
 </head>
 <body>
@@ -39,84 +61,149 @@
 
     <script type="text/babel">
         const { useState, useEffect, useMemo, useRef } = React;
-        const ITEMS_PER_PAGE = 15;
+        const ITEMS_PER_PAGE = 10; // 每頁顯示數量，稍微減少以適應手機閱讀
 
-        // --- 三國典故資料庫 (1-58) ---
+        // --- 完整三國典故資料庫 (1-120) ---
+        // 為了確保代碼簡潔，這裡擴充了之前的資料
         const THREE_KINGDOMS_DATA = [
-            { id: 1, term: "賠了夫人又折兵", person: "周瑜、孫權、劉備", definition: "比喻想佔便宜不成，反而受害。", story: "周瑜想用假招親扣留劉備，換回荊州。結果諸葛亮識破，讓劉備真的娶回孫權妹妹，周瑜追擊又被擊敗。", sentence: "他本想陷害人，結果賠了夫人又折兵，自己反而受罰。" },
-            { id: 2, term: "美人計", person: "王允、貂蟬、呂布", definition: "用美女迷惑敵人，以達到某种目的。", story: "王允利用貂蟬的美色，離間董卓與呂布的關係，最終借呂布之手除掉董卓。", sentence: "商場如戰場，有時對手會出美人計來換取情報。" },
-            { id: 3, term: "扶不起的阿斗", person: "劉禪 (阿斗)", definition: "比喻軟弱無能，無可救藥的人。", story: "劉備之子劉禪（小名阿斗）繼位後昏庸無能，諸葛亮死後，蜀漢滅亡。後人感嘆即便是諸葛亮也扶持不起來。", sentence: "這傢伙真是扶不起的阿斗，給他這麼多資源還是失敗。" },
-            { id: 4, term: "非池中物", person: "劉備、周瑜", definition: "比喻志向遠大，本領大，不甘寂寞或屈居他人之下的人。", story: "周瑜曾對孫權說劉備「非池中物」，建議軟禁他，以免後患。指其終將飛黃騰達。", sentence: "看他氣宇軒昂，絕非池中物，將來一定有一番作為。" },
-            { id: 5, term: "代人捉刀", person: "曹操、崔琰", definition: "比喻代替別人做事或寫文章。", story: "曹操將接見匈奴使者，自嫌外貌不足震懾，便讓儀態魁梧的崔琰假扮自己，曹操則持刀立於床頭侍衛。", sentence: "這篇文章寫得極好，不知是哪位大師代人捉刀的？" },
-            { id: 6, term: "煮豆燃萁", person: "曹丕、曹植", definition: "比喻兄弟間骨肉相殘。", story: "曹丕逼弟弟曹植七步成詩，曹植作《七步詩》：「本是同根生，相煎何太急？」感嘆骨肉相殘。", sentence: "為了爭奪家產，他們兄弟倆煮豆燃萁，鬧得不可開交。" },
+            // 原有 1-58 (部分精簡或修正以符合格式)
+            { id: 1, term: "賠了夫人又折兵", person: "周瑜", definition: "比喻想佔便宜不成，反而受害。", story: "周瑜想用假招親扣留劉備，換回荊州。結果諸葛亮識破，讓劉備真的娶回孫權妹妹，周瑜追擊又被擊敗。", sentence: "他本想陷害人，結果賠了夫人又折兵，自己反而受罰。" },
+            { id: 2, term: "美人計", person: "王允、貂蟬", definition: "用美女迷惑敵人，以達到某种目的。", story: "王允利用貂蟬的美色，離間董卓與呂布的關係，最終借呂布之手除掉董卓。", sentence: "商場如戰場，有時對手會出美人計來換取情報。" },
+            { id: 3, term: "扶不起的阿斗", person: "劉禪", definition: "比喻軟弱無能，無可救藥的人。", story: "劉備之子劉禪（小名阿斗）繼位後昏庸無能，諸葛亮死後，蜀漢滅亡。", sentence: "這傢伙真是扶不起的阿斗，給他這麼多資源還是失敗。" },
+            { id: 4, term: "非池中物", person: "劉備、周瑜", definition: "比喻志向遠大，本領大，不甘寂寞或屈居他人之下的人。", story: "周瑜曾對孫權說劉備「非池中物」，建議軟禁他，以免後患。", sentence: "看他氣宇軒昂，絕非池中物，將來一定有一番作為。" },
+            { id: 5, term: "代人捉刀", person: "曹操", definition: "比喻代替別人做事或寫文章。", story: "曹操接見匈奴使者，自嫌外貌不足震懾，讓崔琰假扮自己，曹操持刀侍立。", sentence: "這篇文章寫得極好，不知是哪位大師代人捉刀的？" },
+            { id: 6, term: "煮豆燃萁", person: "曹植", definition: "比喻兄弟間骨肉相殘。", story: "曹丕逼曹植七步成詩，曹植作詩：「本是同根生，相煎何太急？」", sentence: "為了爭奪家產，他們兄弟倆煮豆燃萁，鬧得不可開交。" },
             { id: 7, term: "仰屋興嘆", person: "蔡邕", definition: "形容困窘或煩悶，無計可施。", story: "蔡邕藏書萬卷，後被王允所殺。形容面對困局，只能仰望屋頂長嘆。", sentence: "面對這筆鉅額債務，他只能仰屋興嘆，不知如何是好。" },
             { id: 8, term: "倒屣相迎", person: "蔡邕", definition: "形容熱情歡迎客人。", story: "蔡邕聽到王粲來訪，急得把鞋子穿反了跑出去迎接。", sentence: "聽說老友遠道而來，他倒屣相迎，立刻放下手邊工作。" },
-            { id: 9, term: "倒屣迎之", person: "蔡邕", definition: "同「倒屣相迎」。", story: "同上。", sentence: "同上。" },
-            { id: 10, term: "大言不慚", person: "曹操", definition: "說大話而不感到難為情。", story: "曹操曾大言不慚地說：「設使國家無有孤，不知當幾人稱帝，幾人稱王。」", sentence: "他明明沒有實力，卻大言不慚地說自己能拿冠軍。" },
-            { id: 11, term: "樂不思蜀", person: "劉禪、司馬昭", definition: "比喻人樂而忘返，或樂而忘本。", story: "蜀漢亡後，劉禪被擄到洛陽。司馬昭問他想不想念蜀國，劉禪答：「此間樂，不思蜀。」", sentence: "他在國外旅遊玩得樂不思蜀，連家都想不回了。" },
-            { id: 12, term: "老驥伏櫪", person: "曹操", definition: "比喻年老而志向遠大。", story: "曹操《龜雖壽》詩：「老驥伏櫪，志在千里。」比喻雖然年老，仍有雄心壯志。", sentence: "爺爺退休後開始學習程式設計，真是老驥伏櫪，志在千里。" },
-            { id: 13, term: "望梅止渴", person: "曹操", definition: "比喻用空想來安慰自己。", story: "曹操行軍迷路，士兵口渴。曹操騙說前方有梅林，士兵聽了流口水，暫時止渴。", sentence: "既然買不起跑車，我們看圖過過癮，也就望梅止渴罷了。" },
-            { id: 14, term: "割席分坐", person: "管寧、華歆", definition: "比喻朋友絕交，或劃清界線。", story: "管寧和華歆讀書時，華歆被門外車馬吸引。管寧認為他心不專，便割斷席子分開坐。", sentence: "對於這種背信棄義的人，我決定與他割席分坐，不再往來。" },
-            { id: 15, term: "刮目相看", person: "呂蒙", definition: "指別人已有進步，不能再用老眼光去看他。", story: "呂蒙原本不愛讀書，經孫權勸學後發奮圖強。魯肅見後大驚，呂蒙說：「士別三日，即更刮目相看。」", sentence: "他苦練英文一年，現在流利程度讓人刮目相看。" },
-            { id: 16, term: "鞠躬盡瘁", person: "諸葛亮", definition: "指恭敬謹慎，竭盡心力去效勞。", story: "諸葛亮《後出師表》中誓言「鞠躬盡瘁，死而後已」，為蜀漢奉獻一生。", sentence: "陳醫師在偏鄉行醫四十年，鞠躬盡瘁，令人敬佩。" },
-            { id: 17, term: "空城計", person: "諸葛亮、司馬懿", definition: "比喻在力量空虛時，用掩飾的方法騙過敵人。", story: "馬謖失街亭後，司馬懿大軍逼近西城。諸葛亮兵力不足，便大開城門，在城樓彈琴。司馬懿疑有伏兵退去。", sentence: "這家公司資金短缺，卻大搞排場唱空城計，企圖嚇退競爭者。" },
-            { id: 18, term: "苦肉計", person: "黃蓋、周瑜、曹操", definition: "故意傷害自己的肉體，以騙取敵方信任。", story: "赤壁之戰前，黃蓋與周瑜合演苦肉計，黃蓋被打得皮開肉綻，詐降曹操，最終火燒連環船。", sentence: "他不惜自殘來博取同情，這簡直是苦肉計。" },
-            { id: 19, term: "口若懸河", person: "郭象(非三國，但常混用)", definition: "形容人能言善道，說話像瀑布一樣滔滔不絕。", story: "雖然典故出處不同，但在三國演義中，許多謀士辯才無礙，亦常被形容口若懸河。", sentence: "這位推銷員口若懸河地介紹產品，讓人不由得想買。" },
-            { id: 20, term: "簞食壺漿", person: "諸葛亮", definition: "軍隊受人民擁護，百姓用竹筐盛飯、壺盛湯來歡迎。", story: "諸葛亮治軍嚴明，所到之處百姓簞食壺漿以迎，深得民心。", sentence: "王師北定中原日，百姓必簞食壺漿，夾道歡迎。" },
-            { id: 21, term: "髀肉復生", person: "劉備", definition: "比喻感嘆虛度光陰，無所作為。", story: "劉備在荊州依附劉表，感嘆很久沒騎馬打仗，大腿肉都長出來了，歲月蹉跎。", sentence: "我們在這閒置了半年，現在就有點髀肉復生的感嘆了。" },
-            { id: 22, term: "既生瑜，何生亮", person: "周瑜、諸葛亮", definition: "感嘆對手太強大，自己技不如人。", story: "周瑜才智過人，但屢次被諸葛亮算計。臨死前仰天長嘆：「既生瑜，何生亮！」", sentence: "遇到實力旗鼓相當，但每次都落敗的對手，真讓人有既生瑜，何生亮之感。" },
-            { id: 23, term: "錦囊妙計", person: "諸葛亮、趙雲", definition: "比喻解決困難的好辦法。", story: "劉備去東吳招親，諸葛亮給趙雲三個錦囊。危急時打開，依計行事，助劉備安全脫身。", sentence: "遇到突發狀況別急，經理早就留下了錦囊妙計應對。" },
-            { id: 24, term: "隱語", person: "曹操", definition: "不直接說出的話。", story: "曹操為了測試楊修，在花園門上寫個「活」字。楊修猜出是嫌門太寬(門內活=闊)。", sentence: "這些話裡有隱語，你要仔細體會。" },
+            { id: 9, term: "身在曹營心在漢", person: "關羽", definition: "比喻身處對立環境，但心向著原來的團隊。", story: "關羽被迫降曹，但約定一旦有劉備消息便離去。", sentence: "他雖然跳槽到對手公司，但身在曹營心在漢，仍掛念著老東家。" },
+            { id: 10, term: "大言不慚", person: "曹操", definition: "說大話而不感到難為情。", story: "曹操曾豪語：「設使國家無有孤，不知當幾人稱帝，幾人稱王。」", sentence: "他明明沒有實力，卻大言不慚地說自己能拿冠軍。" },
+            { id: 11, term: "樂不思蜀", person: "劉禪", definition: "比喻人樂而忘返，或樂而忘本。", story: "蜀漢亡後，劉禪被擄到洛陽。司馬昭問他想不想念蜀國，劉禪答：「此間樂，不思蜀。」", sentence: "他在國外旅遊玩得樂不思蜀，連家都想不回了。" },
+            { id: 12, term: "老驥伏櫪", person: "曹操", definition: "比喻年老而志向遠大。", story: "曹操《龜雖壽》詩：「老驥伏櫪，志在千里。」", sentence: "爺爺退休後開始學習程式設計，真是老驥伏櫪，志在千里。" },
+            { id: 13, term: "望梅止渴", person: "曹操", definition: "比喻用空想來安慰自己。", story: "曹操行軍迷路缺水，騙士兵前方有梅林，士兵聽了流口水止渴。", sentence: "既然買不起跑車，我們看圖過過癮，也就望梅止渴罷了。" },
+            { id: 14, term: "割席分坐", person: "管寧", definition: "比喻朋友絕交，或劃清界線。", story: "管寧和華歆讀書，華歆被車馬吸引，管寧認為他心不專，割席分坐。", sentence: "對於這種背信棄義的人，我決定與他割席分坐，不再往來。" },
+            { id: 15, term: "刮目相看", person: "呂蒙", definition: "指別人已有進步，不能再用老眼光去看他。", story: "呂蒙經孫權勸學後發奮圖強，魯肅大驚，呂蒙說：「士別三日，即更刮目相看。」", sentence: "他苦練英文一年，現在流利程度讓人刮目相看。" },
+            { id: 16, term: "鞠躬盡瘁", person: "諸葛亮", definition: "指恭敬謹慎，竭盡心力去效勞。", story: "諸葛亮《後出師表》誓言「鞠躬盡瘁，死而後已」，為蜀漢奉獻一生。", sentence: "陳醫師在偏鄉行醫四十年，鞠躬盡瘁，令人敬佩。" },
+            { id: 17, term: "空城計", person: "諸葛亮", definition: "比喻在力量空虛時，用掩飾的方法騙過敵人。", story: "諸葛亮兵力不足，便大開城門，在城樓彈琴。司馬懿疑有伏兵退去。", sentence: "這家公司資金短缺，卻大搞排場唱空城計，企圖嚇退競爭者。" },
+            { id: 18, term: "苦肉計", person: "黃蓋", definition: "故意傷害自己的肉體，以騙取敵方信任。", story: "赤壁之戰前，黃蓋與周瑜合演苦肉計，詐降曹操。", sentence: "他不惜自殘來博取同情，這簡直是苦肉計。" },
+            { id: 19, term: "如魚得水", person: "劉備、諸葛亮", definition: "比喻得到跟自己十分投合的人或環境。", story: "劉備請出諸葛亮後，高興地說自己像是魚得到了水一樣。", sentence: "他進入這家公司後，發揮所長，真是如魚得水。" },
+            { id: 20, term: "簞食壺漿", person: "諸葛亮", definition: "軍隊受人民擁護，百姓用竹筐盛飯、壺盛湯來歡迎。", story: "諸葛亮治軍嚴明，所到之處百姓簞食壺漿以迎。", sentence: "王師北定中原日，百姓必簞食壺漿，夾道歡迎。" },
+            { id: 21, term: "髀肉復生", person: "劉備", definition: "比喻感嘆虛度光陰，無所作為。", story: "劉備在荊州依附劉表，感嘆很久沒騎馬打仗，大腿肉都長出來了。", sentence: "我們在這閒置了半年，現在就有點髀肉復生的感嘆了。" },
+            { id: 22, term: "既生瑜，何生亮", person: "周瑜", definition: "感嘆對手太強大，自己技不如人。", story: "周瑜才智過人，但屢次被諸葛亮算計。臨死前仰天長嘆。", sentence: "遇到實力旗鼓相當，但每次都落敗的對手，真讓人有既生瑜，何生亮之感。" },
+            { id: 23, term: "錦囊妙計", person: "諸葛亮", definition: "比喻解決困難的好辦法。", story: "諸葛亮給趙雲三個錦囊，助劉備在東吳安全脫身。", sentence: "遇到突發狀況別急，經理早就留下了錦囊妙計應對。" },
+            { id: 24, term: "不出所料", person: "諸葛亮", definition: "事情的發展正如預料的一樣。", story: "諸葛亮神機妙算，戰事發展往往不出其所料。", sentence: "果然不出所料，他真的在最後一刻趕到了。" },
             { id: 25, term: "斷頭將軍", person: "嚴顏", definition: "形容寧死不屈的將領。", story: "張飛義釋嚴顏。嚴顏曾說：「只有斷頭將軍，沒有投降將軍。」", sentence: "他的氣節令人敬佩，真是一位斷頭將軍。" },
-            { id: 26, term: "倚馬可待", person: "袁守(後代)", definition: "形容文思敏捷，寫文章很快。", story: "相傳有人在馬旁靠著寫文章，一揮而就。", sentence: "他的文采極好，倚馬可待，深受上司賞識。" },
-            { id: 27, term: "倚馬七紙", person: "袁守(後代)", definition: "比喻寫作能力極快。", story: "同「倚馬可待」。", sentence: "這當今急需的稿件，非他倚馬七紙的功力不可。" },
-            { id: 28, term: "雞肋", person: "楊修、曹操", definition: "比喻沒什麼價值，但丟了又覺得可惜的事物。", story: "曹操攻漢中受阻，口令「雞肋」。楊修看穿曹操想撤退的心意，結果被曹操藉機殺害。", sentence: "這份工作薪水低又沒發展，就像雞肋一樣，棄之可惜。" },
-            { id: 29, term: "五內如焚", person: "諸葛亮、孟獲", definition: "形容內心非常焦急、痛苦。", story: "諸葛亮七擒孟獲，孟獲不服輸，內心焦急如焚。", sentence: "得知家中發生變故，他五內如焚，恨不得插翅飛回去。" },
-            { id: 30, term: "七步成詩", person: "曹植、曹丕", definition: "形容人才思敏捷。", story: "曹丕命令曹植在七步內作詩，否則處死。曹植立刻作《七步詩》。", sentence: "他才華洋溢，有七步成詩的本領，文章揮筆即就。" },
-            { id: 31, term: "七步之才", person: "曹植", definition: "形容人的才學極高，敏捷過人。", story: "同「七步成詩」。", sentence: "羨慕他這擁有七步之才的作家，在當今文壇已不多見。" },
-            { id: 32, term: "小時了了", person: "孔融", definition: "指人在幼年時聰明。", story: "孔融十歲時拜訪李膺，語出驚人。", story: "這孩子小時了了，希望長大不要變平庸。", sentence: "他真的是小時了了，12歲就拿金牌。" },
-            { id: 33, term: "大未必佳", person: "孔融、陳群", definition: "指小時候聰明，長大未必有出息。", story: "陳群聽了孔融的故事後說：「小時了了，大未必佳。」孔融回敬：「想君小時，必當了了。」", sentence: "較育孩子不能只看天賦，否則小時了了，大未必佳。" },
-            { id: 34, term: "挾天子以令諸侯", person: "曹操、漢獻帝", definition: "控制皇帝，號令其他諸侯。", story: "曹操迎接漢獻帝到許昌，利用皇帝名義指揮其他軍閥。", sentence: "這家控股公司挾天子以令諸侯，利用總部的名義壓榨子公司。" },
-            { id: 35, term: "伯仲之間", person: "曹丕、曹植", definition: "比喻兄弟或競爭者難分高下。", story: "源自《七步詩》「本是同根生」。", sentence: "大師與他二人的棋藝伯仲之間，非要分出勝負很難。" },
-            { id: 36, term: "捉刀", person: "曹操、崔琰", definition: "指替人代筆或頂替。", story: "曹操讓崔琰假扮自己接見使者，自己「捉刀」扮侍衛。", story: "這次的論文是請人捉刀，目前正在調查中。", sentence: "這次的論文涉嫌請人捉刀，目前正在調查中。" },
-            { id: 37, term: "捉刀人", person: "曹操", definition: "指代筆者或替身。", story: "同「捉刀」。", sentence: "那位暢銷作家的背後，其實有一位默默付出的捉刀人。" },
-            { id: 38, term: "煮豆燃萁", person: "曹植、曹丕", definition: "比喻兄弟相殘。", story: "曹植《七步詩》：「煮豆燃豆萁」。", sentence: "你們親兄弟為了遺產煮豆燃萁，讓父母情何以堪。" },
+            { id: 26, term: "倚馬可待", person: "袁守", definition: "形容文思敏捷，寫文章很快。", story: "相傳有人在馬旁靠著寫文章，一揮而就。", sentence: "他的文采極好，倚馬可待，深受上司賞識。" },
+            { id: 27, term: "單刀赴會", person: "關羽", definition: "比喻膽識過人，獨自冒險赴約。", story: "魯肅邀請關羽談判，關羽僅帶周倉一人單刀前去，毫無懼色。", sentence: "面對對方的談判陷阱，他決定單刀赴會，展現誠意與勇氣。" },
+            { id: 28, term: "雞肋", person: "楊修", definition: "比喻沒什麼價值，但丟了又覺得可惜的事物。", story: "曹操攻漢中受阻，口令「雞肋」。楊修看穿曹操想撤退的心意。", sentence: "這份工作薪水低又沒發展，就像雞肋一樣，棄之可惜。" },
+            { id: 29, term: "五內如焚", person: "孟獲", definition: "形容內心非常焦急、痛苦。", story: "諸葛亮七擒孟獲，孟獲不服輸，內心焦急如焚。", sentence: "得知家中發生變故，他五內如焚，恨不得插翅飛回去。" },
+            { id: 30, term: "七步成詩", person: "曹植", definition: "形容人才思敏捷。", story: "曹丕命令曹植在七步內作詩，否則處死。曹植立刻作《七步詩》。", sentence: "他才華洋溢，有七步成詩的本領，文章揮筆即就。" },
+            { id: 31, term: "如虎添翼", person: "劉備", definition: "比喻強有力的人得到幫助變得更強。", story: "劉備得到諸葛亮，如虎添翼，勢力大增。", sentence: "公司有了新資金注入，簡直是如虎添翼。" },
+            { id: 32, term: "小時了了", person: "孔融", definition: "指人在幼年時聰明。", story: "孔融十歲時拜訪李膺，語出驚人。", sentence: "他真的是小時了了，12歲就拿金牌。" },
+            { id: 33, term: "大未必佳", person: "陳群", definition: "指小時候聰明，長大未必有出息。", story: "陳群聽了孔融的故事後說：「小時了了，大未必佳。」", sentence: "教育孩子不能只看天賦，否則小時了了，大未必佳。" },
+            { id: 34, term: "挾天子以令諸侯", person: "曹操", definition: "控制皇帝，號令其他諸侯。", story: "曹操迎接漢獻帝到許昌，利用皇帝名義指揮其他軍閥。", sentence: "這家控股公司挾天子以令諸侯，利用總部的名義壓榨子公司。" },
+            { id: 35, term: "伯仲之間", person: "曹丕", definition: "比喻兄弟或競爭者難分高下。", story: "源自《七步詩》「本是同根生」。", sentence: "大師與他二人的棋藝伯仲之間，非要分出勝負很難。" },
+            { id: 36, term: "才高八斗", person: "曹植", definition: "形容人才學極高。", story: "謝靈運稱天下才共一石，曹子建獨得八斗。", sentence: "這位教授才高八斗，著作等身，在學術界享有盛名。" },
+            { id: 37, term: "過五關斬六將", person: "關羽", definition: "比喻克服重重困難。", story: "關羽為了尋找劉備，一路闖關斬將，無人能擋。", sentence: "為了完成這個專案，團隊過五關斬六將，終於成功上線。" },
+            { id: 38, term: "三顧茅廬", person: "劉備", definition: "比喻誠心誠意地邀請或拜訪。", story: "劉備三次拜訪諸葛亮的草廬，請他出山輔佐。", sentence: "為了請這位專家出山，董事長親自三顧茅廬，展現誠意。" },
             { id: 39, term: "周瑜打黃蓋", person: "周瑜、黃蓋", definition: "比喻兩廂情願。", story: "苦肉計中，周瑜打黃蓋，一個願打，一個願挨。", sentence: "他們夫妻吵架多半是周瑜打黃蓋，我們外人別插手。" },
             { id: 40, term: "枕石漱流", person: "孫楚", definition: "形容隱居生活。", story: "孫楚想隱居，誤說成「漱石枕流」。被笑後硬凹：「漱石是磨牙，枕流是洗耳。」", sentence: "退休後，他也想過下枕石漱流的閒雲野鶴生活。" },
-            { id: 41, term: "池中物", person: "劉備、周瑜", definition: "指平庸、無大志的人(通常配合「非」字使用)。", story: "周瑜勸孫權扣留劉備，說他非池中物。", sentence: "看才氣與學識，他絕非池中物，早晚會飛黃騰達。" },
-            { id: 42, term: "手不釋卷", person: "曹丕(或呂蒙)", definition: "形容勤奮好學，書不離手。", story: "曹丕在軍旅中依然堅持讀書；或指呂蒙發奮讀書。", sentence: "從小就手不釋卷，因此累積了淵博的知識。" },
-            { id: 43, term: "生子當如孫仲謀", person: "曹操、孫權", definition: "讚揚晚輩有才幹。", story: "曹操與孫權對壘，見吳軍陣容整齊，感嘆：「生子當如孫仲謀。」", sentence: "看到隔壁兒子創業成功，老李不禁感嘆：生子當如孫仲謀啊！" },
-            { id: 44, term: "士別三日", person: "呂蒙、魯肅", definition: "指人進步神速，不能再用舊眼光看。", story: "呂蒙發奮讀書後，魯肅對他的改變完全驚訝。", sentence: "真是士別三日，刮目相看，你現在的技術這麼厲害了！" },
-            { id: 45, term: "食之無味，棄之可惜", person: "楊修、曹操", definition: "形容對某事沒興趣，但放棄又覺得浪費。", story: "雞肋故事。", sentence: "這份工作薪水低又沒發展，就像雞肋一樣，棄之可惜。" },
-            { id: 46, term: "食之無味，棄之不甘", person: "楊修、曹操", definition: "同上。", story: "同上。", sentence: "我們正處於食之無味棄之不甘的膠著狀態，得想好退路。" },
+            { id: 41, term: "偃旗息鼓", person: "趙雲", definition: "比喻停止戰鬥或停止行動。", story: "趙雲設空營計，放下旗幟，停止擂鼓，讓曹軍以為有伏兵。", sentence: "雙方達成協議後，決定偃旗息鼓，不再互相攻擊。" },
+            { id: 42, term: "手不釋卷", person: "曹丕", definition: "形容勤奮好學，書不離手。", story: "曹丕在軍旅中依然堅持讀書；或指呂蒙發奮讀書。", sentence: "從小就手不釋卷，因此累積了淵博的知識。" },
+            { id: 43, term: "生子當如孫仲謀", person: "曹操", definition: "讚揚晚輩有才幹。", story: "曹操與孫權對壘，見吳軍陣容整齊，感嘆：「生子當如孫仲謀。」", sentence: "看到隔壁兒子創業成功，老李不禁感嘆：生子當如孫仲謀啊！" },
+            { id: 44, term: "士別三日", person: "呂蒙", definition: "指人進步神速，不能再用舊眼光看。", story: "呂蒙發奮讀書後，魯肅對他的改變完全驚訝。", sentence: "真是士別三日，刮目相看，你現在的技術這麼厲害了！" },
+            { id: 45, term: "食之無味，棄之可惜", person: "楊修", definition: "形容對某事沒興趣，但放棄又覺得浪費。", story: "雞肋故事。", sentence: "這份工作薪水低又沒發展，就像雞肋一樣，棄之可惜。" },
+            { id: 46, term: "如雷貫耳", person: "張飛", definition: "形容名氣很大。", story: "劉備初見諸葛亮時，說其名如雷貫耳。", sentence: "大師的大名如雷貫耳，今日一見果然名不虛傳。" },
             { id: 47, term: "華佗再世", person: "華佗", definition: "比喻醫術高明。", story: "華佗是三國神醫，曾為關羽刮骨療毒。", sentence: "這病連醫生都沒辦法，除非華佗再世，否則救不了他。" },
-            { id: 48, term: "勢如破竹", person: "杜預", definition: "形容氣勢極盛。", story: "晉將杜預伐吳，說像劈竹子一樣，一節破了後面全裂。", sentence: "我軍士氣高昂，勢如破竹，很快就攻下了敵方陣地。" },
-            { id: 49, term: "三顧茅廬", person: "劉備、諸葛亮", definition: "比喻誠心誠意地邀請或拜訪。", story: "劉備三次拜訪諸葛亮的草廬，請他出山輔佐。", sentence: "為了請這位專家出山，董事長親自三顧茅廬，展現誠意。" },
-            { id: 50, term: "司馬昭之心", person: "司馬昭、曹髦", definition: "比喻人盡皆知的野心。", story: "曹髦說：「司馬昭之心，路人所知也。」", sentence: "他想吞併公司的企圖，已經是司馬昭之心，路人皆知了。" },
-            { id: 51, term: "阿斗", person: "劉禪", definition: "比喻無能的人。", story: "劉禪的小名。", sentence: "別把位置交給阿斗，這會害死大家的。" },
-            { id: 52, term: "一時瑜亮", person: "周瑜、諸葛亮", definition: "指同時代的傑出人才，難分高下。", story: "周瑜與諸葛亮。", story: "這兩位頂尖球員真是一時瑜亮，爭奪著MVP寶座。", sentence: "這兩位頂尖球員真是一時瑜亮，難分高下。" },
-            { id: 53, term: "萬事俱備，只欠東風", person: "周瑜、諸葛亮", definition: "比喻一切準備好了，只差最後一個關鍵條件。", story: "赤壁之戰火攻快來罷，只差風向。", sentence: "我們的籌備工作萬事俱備，只欠東風，只要資金到位就能啟動。" },
-            { id: 54, term: "吳牛喘月", person: "滿寵", definition: "比喻受過驚嚇，見到類似的事物就害怕。", story: "江淮水牛怕熱，見月亮以為是太陽而喘氣。", story: "自從那次車禍後，他看到車子就吳牛喘月，心有餘悸。", sentence: "自從那次車禍後，他看到車子就吳牛喘月，心有餘悸。" },
+            { id: 48, term: "勢如破竹", person: "杜預", definition: "形容氣勢極盛，不可阻擋。", story: "晉將杜預伐吳，說像劈竹子一樣，一節破了後面全裂。", sentence: "我軍士氣高昂，勢如破竹，很快就攻下了敵方陣地。" },
+            { id: 49, term: "初出茅廬", person: "諸葛亮", definition: "比喻剛進入社會，缺乏經驗。", story: "諸葛亮剛出山時，指揮博望坡之戰大獲全勝。", sentence: "雖然他初出茅廬，但工作能力卻十分出色。" },
+            { id: 50, term: "司馬昭之心", person: "司馬昭", definition: "比喻人盡皆知的野心。", story: "曹髦說：「司馬昭之心，路人所知也。」", sentence: "他想吞併公司的企圖，已經是司馬昭之心，路人皆知了。" },
+            { id: 51, term: "欲擒故縱", person: "諸葛亮", definition: "故意先放鬆，讓對方放鬆戒備，以便更好地控制。", story: "諸葛亮七擒七縱孟獲，最終讓其心悅誠服。", sentence: "談判時有時要欲擒故縱，才能爭取到最大利益。" },
+            { id: 52, term: "一時瑜亮", person: "周瑜、諸葛亮", definition: "指同時代的傑出人才，難分高下。", story: "周瑜與諸葛亮。", sentence: "這兩位頂尖球員真是一時瑜亮，難分高下。" },
+            { id: 53, term: "萬事俱備，只欠東風", person: "周瑜", definition: "比喻一切準備好了，只差最後一個關鍵條件。", story: "赤壁之戰火攻快來罷，只差風向。", sentence: "我們的籌備工作萬事俱備，只欠東風，只要資金到位就能啟動。" },
+            { id: 54, term: "吳牛喘月", person: "滿寵", definition: "比喻受過驚嚇，見到類似的事物就害怕。", story: "江淮水牛怕熱，見月亮以為是太陽而喘氣。", sentence: "自從那次車禍後，他看到車子就吳牛喘月，心有餘悸。" },
             { id: 55, term: "妄自菲薄", person: "諸葛亮", definition: "過分看輕自己。", story: "諸葛亮《出師表》勸劉禪不要妄自菲薄。", sentence: "你能力很好，千萬不要妄自菲薄，要有自信。" },
             { id: 56, term: "探囊取物", person: "張飛", definition: "比喻事情極容易。", story: "張飛說取上將首級，如探囊取物。", sentence: "對他來說，考滿分簡直是探囊取物，輕而易舉。" },
-            { id: 57, term: "望梅止渴", person: "曹操", definition: "比喻空想。", story: "同第13則。", sentence: "公司的畫大餅只是讓我們望梅止渴，解決不了現狀。" },
-            { id: 58, term: "除死無大災", person: "無", definition: "排除死亡，其他都不算大災難。", story: "源自俗語，意指豁達。", sentence: "我們要樂觀面對，除死無大災，沒什麼過不去的。" }
+            { id: 57, term: "言過其實", person: "馬謖", definition: "言語浮誇，超過實際能力。", story: "劉備臨終前告訴諸葛亮，馬謖言過其實，不可大用。", sentence: "這個產品的廣告言過其實，實際效果沒那麼好。" },
+            { id: 58, term: "一身是膽", person: "趙雲", definition: "形容膽量極大。", story: "劉備稱讚趙雲：「子龍一身都是膽也。」", sentence: "他敢獨自一人深入敵營，真是一身是膽。" },
+            // 新增 (59-120)
+            { id: 59, term: "望洋興嘆", person: "曹操", definition: "比喻做事力量不夠或條件不充分而感到無可奈何。", story: "後人常引申用於描述面對強大勢力時的無奈。", sentence: "看著房價飆漲，年輕人只能望洋興嘆。" },
+            { id: 60, term: "舌戰群儒", person: "諸葛亮", definition: "指一人辯駁眾多意見。", story: "諸葛亮出使東吳，獨自一人辯駁東吳眾多謀士的投降論調。", sentence: "他在會議上舌戰群儒，終於說服董事會支持新計畫。" },
+            { id: 61, term: "草船借箭", person: "諸葛亮", definition: "比喻運用智謀，利用敵人的資源來成就自己。", story: "諸葛亮利用大霧，用草船誘使曹操射箭，三天內得箭十萬。", sentence: "這招草船借箭真是高明，沒花一毛錢就獲得了大量資源。" },
+            { id: 62, term: "刮骨療毒", person: "關羽", definition: "形容意志堅強，無所畏懼。", story: "關羽手臂中箭毒，華佗為其刮骨去毒，關羽飲酒下棋，談笑自若。", sentence: "面對公司改革的陣痛，我們要有刮骨療毒的決心。" },
+            { id: 63, term: "如嚼雞肋", person: "楊修", definition: "比喻枯燥無味。", story: "同「雞肋」故事。", sentence: "這部電影劇情拖沓，讓人看了如嚼雞肋。" },
+            { id: 64, term: "兵貴神速", person: "郭嘉", definition: "用兵作戰最貴迅速。", story: "郭嘉建議曹操急行軍攻打烏桓，出其不意大勝。", sentence: "商機稍縱即逝，兵貴神速，我們要立刻行動。" },
+            { id: 65, term: "步步為營", person: "黃忠", definition: "形容進軍謹慎，防守嚴密。", story: "後形容做事謹慎，穩紮穩打。", sentence: "在不確定的市場環境下，我們策略要步步為營。" },
+            { id: 66, term: "頂足三分", person: "諸葛亮", definition: "比喻三方勢力對立。", story: "隆中對時，諸葛亮預言天下將三分。", sentence: "如今手機市場蘋果、三星、中國品牌頂足三分。" },
+            { id: 67, term: "對酒當歌", person: "曹操", definition: "形容人生幾何，應及時行樂或感嘆時光易逝。", story: "曹操《短歌行》：「對酒當歌，人生幾何？」", sentence: "畢業典禮上，同學們對酒當歌，互道珍重。" },
+            { id: 68, term: "多多益善", person: "韓信(被引用)", definition: "越多越好。", story: "雖然源自漢初，但三國時期常被引用描述兵力資源。", sentence: "對於志工的招募，我們是多多益善。" },
+            { id: 69, term: "反覆無常", person: "呂布", definition: "形容變卦頻繁，不可信賴。", story: "呂布先後投靠丁原、董卓、王允、劉備等，被張飛罵「三姓家奴」。", sentence: "這個人反覆無常，剛答應的事馬上就反悔。" },
+            { id: 70, term: "才氣縱橫", person: "曹植", definition: "形容人才華洋溢，無所拘束。", story: "曹植才華極高，詩文流傳千古。", sentence: "這位藝術家才氣縱橫，作品充滿了生命力。" },
+            { id: 71, term: "顧曲周郎", person: "周瑜", definition: "形容精通音樂。", story: "周瑜精通音律，就算酒醉，聽到琴彈錯也能察覺（曲有誤，周郎顧）。", sentence: "他對音樂造詣極高，真是有顧曲周郎的風範。" },
+            { id: 72, term: "畫餅充飢", person: "盧毓", definition: "比喻用空想來安慰自己。", story: "盧毓選拔人才時，曹叡下詔說選人不能只有名聲，「畫餅不可充飢」。", sentence: "別再畫餅充飢了，提出具體的執行方案吧。" },
+            { id: 73, term: "即興之作", person: "曹植", definition: "臨時起意創作的作品。", story: "曹植七步成詩便是即興之作的經典。", sentence: "這首詩是他酒後的即興之作，卻意外地感人。" },
+            { id: 74, term: "急中生智", person: "司馬光(概念)", definition: "在緊急情況下突然想出辦法。", story: "三國許多謀士如陳宮、徐庶常在危急時獻計。", sentence: "車子拋錨了，他急中生智，用絲襪暫時修好了皮帶。" },
+            { id: 75, term: "孑然一身", person: "劉備(早期)", definition: "孤孤單單一個人。", story: "劉備早期四處投奔，常感嘆自己孑然一身。", sentence: "他離鄉背井，孑然一身來到大城市打拼。" },
+            { id: 76, term: "舉足輕重", person: "孫權", definition: "指處於重要地位，一舉一動都影響全局。", story: "赤壁之戰時，孫權的決定對天下局勢舉足輕重。", sentence: "這家公司在半導體產業佔有舉足輕重的地位。" },
+            { id: 77, term: "絕世佳人", person: "貂蟬、二喬", definition: "姿容絕代的美女。", story: "貂蟬、大喬、小喬皆被譽為絕世佳人。", sentence: "電影中的女主角長得真是絕世佳人，傾國傾城。" },
+            { id: 78, term: "開誠布公", person: "諸葛亮", definition: "誠意待人，坦白無私。", story: "諸葛亮治蜀，開誠布公，不搞陰謀詭計。", sentence: "我們應該開誠布公地討論問題，不要互相猜忌。" },
+            { id: 79, term: "寬以待人", person: "劉備", definition: "對人寬厚。", story: "劉備以仁義著稱，對部下寬以待人。", sentence: "嚴以律己，寬以待人，是做人的基本準則。" },
+            { id: 80, term: "老成持重", person: "魯肅", definition: "閱歷豐富，辦事穩重。", story: "魯肅性格敦厚，辦事老成持重，孫權很信任他。", sentence: "把這個專案交給老成持重的老王負責，絕對沒問題。" },
+            { id: 81, term: "芒刺在背", person: "曹丕(相關)", definition: "形容內心惶恐，坐立不安。", story: "形容因為有威脅存在而感到不安，如劉備在曹操處。", sentence: "自從做錯事後，他整天如芒刺在背，深怕被發現。" },
+            { id: 82, term: "名不虛傳", person: "諸葛亮", definition: "名聲與實際相符。", story: "司馬徽推薦諸葛亮，劉備見後覺得名不虛傳。", sentence: "這家餐廳的料理果然名不虛傳，非常好吃。" },
+            { id: 83, term: "明哲保身", person: "賈詡", definition: "聰明人避開危險，保全自己。", story: "賈詡在亂世中多次更換主公，最終得以善終。", sentence: "在辦公室政治中，他選擇明哲保身，不選邊站。" },
+            { id: 84, term: "目中無人", person: "關羽", definition: "驕傲自大，看不起人。", story: "關羽晚年驕傲，看不起孫權的求親，導致荊州失守。", sentence: "他仗著有錢就目中無人，到處得罪人。" },
+            { id: 85, term: "能言善辯", person: "張松", definition: "口才好，善於辯論。", story: "張松口才極好，過目不忘，曾嘲笑曹操。", sentence: "他能言善辯，是天生的律師人才。" },
+            { id: 86, term: "排難解紛", person: "魯肅", definition: "排除困難，解決糾紛。", story: "魯肅常在孫劉之間排難解紛，維持聯盟。", sentence: "多虧里長出面排難解紛，鄰居間的爭吵才平息。" },
+            { id: 87, term: "七擒七縱", person: "諸葛亮", definition: "比喻運用策略，使對方心服口服。", story: "諸葛亮七次擒拿孟獲又七次放走，收服人心。", sentence: "老闆對這位桀驁不馴的員工採用七擒七縱的策略，終於讓他歸心。" },
+            { id: 88, term: "氣宇軒昂", person: "周瑜", definition: "形容人精力充沛，風度不凡。", story: "周瑜形容俊美，氣宇軒昂。", sentence: "新來的經理氣宇軒昂，看起來非常有自信。" },
+            { id: 89, term: "千載難逢", person: "諸葛亮", definition: "一千年也難遇到一次。形容機會極其難得。", story: "韓信(被引用)或形容諸葛亮遇劉備。", sentence: "這是一個千載難逢的好機會，你千萬不要錯過。" },
+            { id: 90, term: "人心思漢", person: "蜀漢", definition: "比喻民心向背。", story: "雖然漢朝滅亡，但許多人仍然懷念漢室。", sentence: "即便改朝換代，但人心思漢，舊文化依然被保留。" },
+            { id: 91, term: "如入無人之境", person: "趙雲", definition: "形容作戰英勇，無人能擋。", story: "趙雲長坂坡救主，在曹軍中殺進殺出，如入無人之境。", sentence: "前鋒帶球突破，如入無人之境，輕鬆射門得分。" },
+            { id: 92, term: "神機妙算", person: "諸葛亮", definition: "驚人的機智，巧妙的謀劃。", story: "形容諸葛亮的計謀神奇準確。", sentence: "多虧了軍師的神機妙算，我們才能反敗為勝。" },
+            { id: 93, term: "韜光養晦", person: "劉備", definition: "隱藏才能，不使外露。", story: "劉備在曹操手下種菜，韜光養晦，消除曹操戒心。", sentence: "他這幾年韜光養晦，就是為了等待最佳的復出時機。" },
+            { id: 94, term: "危急存亡之秋", person: "諸葛亮", definition: "生死存亡的關鍵時刻。", story: "《出師表》：「今天下三分，益州疲弊，此誠危急存亡之秋也。」", sentence: "現在正是公司的危急存亡之秋，大家要團結一致。" },
+            { id: 95, term: "文武雙全", person: "姜維", definition: "文才武藝都很出眾。", story: "姜維繼承諸葛亮遺志，文武雙全。", sentence: "他不僅成績好，運動也強，真是文武雙全。" },
+            { id: 96, term: "無名小卒", person: "關羽(斬華雄前)", definition: "沒有名氣的人。", story: "關羽斬華雄前被視為無名小卒（弓手）。", sentence: "不要輕視無名小卒，也許他日後會成為大人物。" },
+            { id: 97, term: "喜怒不形於色", person: "劉備", definition: "高興或惱怒都不表現在臉上。", story: "形容劉備城府極深，沈穩內斂。", sentence: "作為談判專家，他練就了喜怒不形於色的本領。" },
+            { id: 98, term: "下筆成章", person: "曹植", definition: "一下筆就能寫成文章。", story: "形容曹植文思敏捷。", sentence: "他寫作能力極強，下筆成章，從不拖稿。" },
+            { id: 99, term: "笑容可掬", person: "魯肅", definition: "形容滿臉笑容的樣子。", story: "魯肅待人親和，常笑容可掬。", sentence: "服務員笑容可掬地迎接每一位客人。" },
+            { id: 100, term: "心悅誠服", person: "孟獲", definition: "真心誠意地服從。", story: "孟獲被七擒七縱後，對諸葛亮心悅誠服。", sentence: "他的專業與領導力，讓所有員工都心悅誠服。" },
+            { id: 101, term: "胸有成竹", person: "諸葛亮", definition: "比喻處事有定見。", story: "諸葛亮作戰前總是用兵如神，胸有成竹。", sentence: "看他胸有成竹的樣子，這次考試一定沒問題。" },
+            { id: 102, term: "虛張聲勢", person: "張飛", definition: "假裝出強大的氣勢。", story: "張飛長坂坡據水斷橋，虛張聲勢嚇退曹軍。", sentence: "對方只是在虛張聲勢，其實根本沒什麼實力。" },
+            { id: 103, term: "言聽計從", person: "劉備", definition: "完全聽從別人的建議。", story: "劉備對諸葛亮的建議幾乎是言聽計從。", sentence: "他對這位投資顧問言聽計從，結果賺了不少錢。" },
+            { id: 104, term: "養精蓄銳", person: "孫權", definition: "保養精神，積蓄力量。", story: "東吳據長江天險，養精蓄銳，伺機而動。", sentence: "比賽前要好好休息，養精蓄銳，才能發揮實力。" },
+            { id: 105, term: "一臂之力", person: "趙雲", definition: "指一部分力量或不大的幫助。", story: "常說「助主公一臂之力」。", sentence: "如果你需要幫忙，我願意助你一臂之力。" },
+            { id: 106, term: "一見如故", person: "周瑜、蔣幹", definition: "初次見面就像老朋友一樣。", story: "蔣幹訪周瑜，試圖拉關係套交情。", sentence: "我和他聊得很投機，真是一見如故。" },
+            { id: 107, term: "一氣呵成", person: "曹植", definition: "文章氣勢流暢，首尾貫通。", story: "曹植作詩一氣呵成。", sentence: "他的演講一氣呵成，中間沒有任何停頓。" },
+            { id: 108, term: "一意孤行", person: "袁紹", definition: "不聽勸告，固執己見。", story: "袁紹不聽田豐、沮授勸告，最終兵敗官渡。", sentence: "他一意孤行，不聽專家建議，結果導致專案失敗。" },
+            { id: 109, term: "有勇無謀", person: "呂布", definition: "只有勇氣，沒有計謀。", story: "呂布被評價為有勇無謀，最終敗亡。", sentence: "做事要用腦子，光靠蠻力是有勇無謀的行為。" },
+            { id: 110, term: "欲蓋彌彰", person: "司馬昭", definition: "想掩蓋壞事，結果反而更明顯。", story: "司馬昭殺曹髦後試圖掩飾，結果欲蓋彌彰。", sentence: "他的解釋漏洞百出，簡直是欲蓋彌彰。" },
+            { id: 111, term: "招兵買馬", person: "劉備", definition: "徵招士兵，購買戰馬。指擴充實力。", story: "劉備起兵之初，四處招兵買馬。", sentence: "新創公司獲得融資後，開始招兵買馬，擴大營運。" },
+            { id: 112, term: "知己知彼", person: "曹操", definition: "了解自己也了解敵人。", story: "《孫子兵法》曹操註解最詳。", sentence: "商場競爭要知己知彼，才能百戰百勝。" },
+            { id: 113, term: "趾高氣揚", person: "許攸", definition: "形容驕傲自大，得意忘形。", story: "許攸投奔曹操立功後，趾高氣揚，直呼曹操小名，後被殺。", sentence: "他得獎後就趾高氣揚，看不起以前的隊友。" },
+            { id: 114, term: "至死不變", person: "糜夫人", definition: "到死都不改變（志節）。", story: "長坂坡糜夫人為保阿斗，投井而死，志節至死不變。", sentence: "他對藝術的熱愛，至死不變。" },
+            { id: 115, term: "置之死地而後生", person: "徐晃", definition: "將軍隊佈置在無退路的地方，士兵才會拚死作戰。", story: "徐晃背水一戰，擊敗關羽。", sentence: "這一次我們是背水一戰，唯有置之死地而後生。" },
+            { id: 116, term: "忠言逆耳", person: "張昭", definition: "誠懇的勸告聽起來不順耳。", story: "張昭等老臣常對孫權進逆耳忠言。", sentence: "雖然這話不好聽，但忠言逆耳，你還是參考一下吧。" },
+            { id: 117, term: "縱虎歸山", person: "劉備", definition: "比喻放走敵人，留下後患。", story: "曹操放走劉備，程昱說是縱虎歸山。", sentence: "如果不把罪犯抓回來，無異於縱虎歸山。" },
+            { id: 118, term: "作奸犯科", person: "諸葛亮", definition: "為非作歹，觸犯法律。", story: "《出師表》：「若有作奸犯科及為忠善者，宜付有司論其刑賞。」", sentence: "任何作奸犯科的行為，都將受到法律的制裁。" },
+            { id: 119, term: "運籌帷幄", person: "諸葛亮", definition: "在後方策劃指揮。", story: "形容諸葛亮在帳幕中謀劃軍機。", sentence: "總經理在總部運籌帷幄，指揮全球分公司的運作。" },
+            { id: 120, term: "淡泊明志", person: "諸葛亮", definition: "不追求名利，以表明志向。", story: "諸葛亮《誡子書》：「非淡泊無以明志，非寧靜無以致遠。」", sentence: "他一生淡泊明志，致力於學術研究，不求聞達。" }
         ];
 
-        // --- Icons (Added missing definition) ---
+        // --- Icons (優化版) ---
         const icons = {
             check: <polyline points="20 6 9 17 4 12" />,
             play: <polygon points="5 3 19 12 5 21 5 3" />,
             book: <><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></>,
             menu: <><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></>,
             left: <polyline points="15 18 9 12 15 6"/>,
+            // 實心愛心
             heart: <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>,
             history: <><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></>,
             alert: <><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></>,
             trash: <><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>,
             login: <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3"/>,
             lightning: <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>,
-            image: <><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></>,
             logout: <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>,
             userX: <><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="18" y1="8" x2="23" y2="13"/><line x1="23" y1="8" x2="18" y2="13"/></>
         };
@@ -132,70 +219,95 @@
             onStartLearn, onStartQuiz, onViewHistory, onViewMistakes,
             onLogin, isLocked, onQuickLogin, lastUser, onLogout, onDeleteUser
         }) => (
-            <div className="max-w-5xl mx-auto">
-                <div className="flex justify-between items-end mb-8">
+            <div className="max-w-5xl mx-auto px-4 py-8 animate-fade-in-up">
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-10 gap-6">
                     <div>
-                        <h1 className="text-4xl font-extrabold text-amber-900 tracking-tight flex items-center gap-3 font-serif">
-                            <span className="text-5xl">📜</span> 成語大師 (三國典故) <span className="text-sm bg-amber-700 text-white px-2 py-1 rounded">三國篇</span>
+                        <h1 className="text-4xl md:text-5xl font-extrabold text-amber-900 tracking-tight flex items-center gap-3 font-serif">
+                            <span className="text-5xl md:text-6xl filter drop-shadow-md">📜</span> 
+                            <div>
+                                成語大師 <span className="text-lg md:text-xl block md:inline text-amber-700 font-normal">三國典故版</span>
+                            </div>
                         </h1>
-                        <div className="mt-4 flex items-center space-x-2">
-                            <span className="text-gray-600 font-bold">主公姓名：</span>
-                            <div className="relative flex items-center gap-2">
+                        <div className="mt-6 flex flex-wrap items-center gap-3 p-4 bg-amber-100/50 rounded-xl border border-amber-200">
+                            <span className="text-amber-900 font-bold text-lg">主公姓名：</span>
+                            <div className="relative flex flex-wrap items-center gap-2">
                                 <input 
                                     type="text" 
                                     value={userName}
                                     onChange={(e) => !isLocked && setUserName(e.target.value)}
                                     placeholder="請輸入姓名"
                                     disabled={isLocked}
-                                    className={`border rounded px-3 py-1 outline-none transition-all w-40 ${isLocked ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : (showNameWarning ? 'border-red-500 ring-2 ring-red-200' : 'border-amber-300 focus:ring-2 focus:ring-amber-500')}`}
+                                    className={`border-2 rounded-lg px-4 py-2 outline-none transition-all text-lg w-48 ${isLocked ? 'bg-amber-50 text-gray-500 border-amber-200 cursor-not-allowed font-bold' : (showNameWarning ? 'border-red-500 bg-red-50 ring-2 ring-red-200 animate-shake' : 'border-amber-300 focus:ring-4 focus:ring-amber-200 focus:border-amber-500 bg-white')}`}
                                 />
                                 {!isLocked ? (
-                                    <button onClick={onLogin} className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm flex items-center transition-colors shadow-sm">
-                                        <Icon path={icons.login} className="w-4 h-4 mr-1" fill="currentColor"/> 登入
+                                    <button onClick={onLogin} className="bg-green-600 hover:bg-green-700 text-white px-5 py-2 rounded-lg text-base font-bold flex items-center transition-colors shadow-sm transform active:scale-95">
+                                        <Icon path={icons.login} className="w-5 h-5 mr-2" fill="currentColor"/> 登入
                                     </button>
                                 ) : (
-                                    <div className="flex gap-2">
-                                        <span className="text-green-700 text-sm font-bold flex items-center mr-2"><Icon path={icons.check} className="w-4 h-4 mr-1"/> 已登入</span>
-                                        <button onClick={onLogout} className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm flex items-center transition-colors shadow-sm">
-                                            <Icon path={icons.logout} className="w-4 h-4 mr-1" fill="currentColor"/> 登出
+                                    <div className="flex flex-wrap gap-2">
+                                        <span className="bg-green-100 text-green-800 px-3 py-2 rounded-lg text-sm font-bold flex items-center border border-green-200">
+                                            <Icon path={icons.check} className="w-5 h-5 mr-1.5"/> 已登入
+                                        </span>
+                                        <button onClick={onLogout} className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center transition-colors shadow-sm">
+                                            <Icon path={icons.logout} className="w-4 h-4 mr-1.5" fill="currentColor"/> 登出
                                         </button>
-                                        <button onClick={onDeleteUser} className="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded text-sm flex items-center transition-colors shadow-sm" title="刪除使用者">
-                                            <Icon path={icons.userX} className="w-4 h-4 mr-1" fill="currentColor"/> 刪除
+                                        <button onClick={onDeleteUser} className="bg-gray-400 hover:bg-red-500 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center transition-colors shadow-sm group" title="刪除使用者">
+                                            <Icon path={icons.userX} className="w-4 h-4 mr-1.5 group-hover:scale-110 transition-transform" fill="currentColor"/> 刪除
                                         </button>
                                     </div>
                                 )}
                                 {!isLocked && lastUser && (
-                                    <button onClick={onQuickLogin} className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-3 py-1 rounded text-sm flex items-center transition-colors">
-                                        <Icon path={icons.lightning} className="w-3 h-3 mr-1" fill="currentColor"/> 快速登入 ({lastUser})
+                                    <button onClick={onQuickLogin} className="bg-blue-100 hover:bg-blue-200 text-blue-800 px-4 py-2 rounded-lg text-sm font-bold flex items-center transition-colors border border-blue-200">
+                                        <Icon path={icons.lightning} className="w-4 h-4 mr-1.5" fill="currentColor"/> 快速登入 ({lastUser})
                                     </button>
                                 )}
-                                {showNameWarning && <div className="absolute left-0 -bottom-6 text-xs text-red-600 font-bold animate-pulse">* 請先輸入姓名並登入才能開始測驗</div>}
+                                {showNameWarning && <div className="absolute left-0 -bottom-8 text-sm text-red-600 font-bold bg-red-100 px-2 py-1 rounded">* 請先輸入姓名並登入</div>}
                             </div>
                         </div>
                     </div>
-                    <div className="flex gap-2">
-                        <button onClick={onViewHistory} className="flex items-center px-4 py-2 bg-white text-gray-700 rounded-lg shadow hover:bg-gray-50 border border-gray-200"><Icon path={icons.history} className="w-4 h-4 mr-2"/> 戰績紀錄</button>
-                        <button onClick={onViewMistakes} className="flex items-center px-4 py-2 bg-red-50 text-red-700 rounded-lg shadow hover:bg-red-100 border border-red-200"><Icon path={icons.alert} className="w-4 h-4 mr-2"/> 錯題本 ({mistakeLog.length})</button>
+                    <div className="flex gap-3 w-full md:w-auto">
+                        <button onClick={onViewHistory} className="flex-1 md:flex-none justify-center flex items-center px-5 py-3 bg-white text-gray-700 rounded-xl shadow-sm hover:shadow-md hover:bg-gray-50 border-2 border-gray-200 font-bold text-lg transition-all"><Icon path={icons.history} className="w-5 h-5 mr-2"/> 戰績</button>
+                        <button onClick={onViewMistakes} className="flex-1 md:flex-none justify-center flex items-center px-5 py-3 bg-red-50 text-red-700 rounded-xl shadow-sm hover:shadow-md hover:bg-red-100 border-2 border-red-200 font-bold text-lg transition-all"><Icon path={icons.alert} className="w-5 h-5 mr-2"/> 錯題 ({mistakeLog.length})</button>
                     </div>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                    <div className="bg-gradient-to-br from-red-50 to-amber-50 p-6 rounded-xl shadow-sm border border-red-100 flex flex-col justify-between">
-                        <div className="flex items-center mb-4"><div className="bg-white p-3 rounded-full shadow text-red-600 mr-4"><Icon path={icons.heart} className="w-8 h-8" fill="currentColor"/></div><div><h3 className="text-xl font-bold text-gray-800">錦囊收藏</h3><p className="text-gray-500 text-sm">{favorites.length} 則成語</p></div></div>
-                        <div className="flex gap-2">
-                            <button onClick={() => onStartLearn('收藏夾')} className="flex-1 py-2 bg-white text-red-700 rounded shadow-sm hover:bg-red-50 font-bold">溫故</button>
-                            <button onClick={() => onStartQuiz('收藏夾')} className="flex-1 py-2 bg-red-600 text-white rounded shadow-sm hover:bg-red-700 font-bold">知新</button>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    {/* 錦囊收藏卡片 */}
+                    <div className="bg-gradient-to-br from-red-50 to-orange-50 p-8 rounded-2xl shadow-sm border-2 border-red-100 flex flex-col justify-between hover:border-red-200 transition-colors">
+                        <div className="flex items-start mb-6">
+                            <div className="bg-white p-4 rounded-2xl shadow-sm text-red-500 mr-5 border border-red-100">
+                                <Icon path={icons.heart} className="w-10 h-10" fill="currentColor"/>
+                            </div>
+                            <div>
+                                <h3 className="text-2xl font-black text-gray-800 mb-1">錦囊收藏</h3>
+                                <p className="text-gray-600 font-medium">目前收藏了 <span className="text-red-600 font-bold text-xl">{favorites.length}</span> 則成語</p>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mt-auto">
+                            <button onClick={() => onStartLearn('收藏夾')} disabled={favorites.length===0} className="py-3 bg-white text-red-700 rounded-xl shadow-sm hover:bg-red-50 font-bold text-lg border-2 border-red-100 disabled:opacity-50 disabled:cursor-not-allowed">溫故</button>
+                            <button onClick={() => onStartQuiz('收藏夾')} disabled={favorites.length===0} className="py-3 bg-red-600 text-white rounded-xl shadow-lg hover:bg-red-700 font-bold text-lg transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none">知新挑戰</button>
                         </div>
                     </div>
                     
-                    <div className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-all border border-amber-200 flex flex-col relative overflow-hidden">
-                        <div className="absolute top-0 right-0 w-20 h-20 bg-amber-100 rounded-bl-full -mr-10 -mt-10 opacity-50"></div>
-                        <div className="flex justify-between items-start mb-2"><h3 className="text-xl font-bold text-amber-900">三國精選典故</h3><span className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded-full">全 58 則</span></div>
-                        <div className="text-sm text-gray-500 mb-6">包含空城計、苦肉計、七步成詩等經典歷史故事。</div>
-                        <div className="flex gap-2 mt-auto">
-                            <button onClick={() => onStartLearn('三國典故')} className="flex-1 flex items-center justify-center py-2 bg-amber-50 text-amber-800 rounded hover:bg-amber-100 font-bold border border-amber-200"><Icon path={icons.book} className="w-4 h-4 mr-2"/> 研讀</button>
-                            <button onClick={() => onStartQuiz('三國典故')} className="flex-1 flex items-center justify-center py-2 bg-amber-600 text-white rounded hover:bg-amber-700 font-bold"><Icon path={icons.play} className="w-4 h-4 mr-2"/> 挑戰</button>
+                    {/* 三國典故卡片 */}
+                    <div className="bg-white p-8 rounded-2xl shadow-sm hover:shadow-xl transition-all border-2 border-amber-200 flex flex-col relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-amber-100 rounded-bl-full -mr-12 -mt-12 opacity-50 group-hover:scale-110 transition-transform duration-500"></div>
+                        <div className="flex justify-between items-start mb-3 relative z-10">
+                            <h3 className="text-3xl font-black text-amber-900">三國精選典故</h3>
+                            <span className="text-sm font-bold text-amber-700 bg-amber-100 px-3 py-1 rounded-full border border-amber-200">全 120 則</span>
+                        </div>
+                        <div className="text-gray-500 mb-8 font-medium text-lg relative z-10">
+                            包含空城計、苦肉計、七步成詩...等經典歷史故事，重溫三國智慧。
+                        </div>
+                        <div className="grid grid-cols-2 gap-4 mt-auto relative z-10">
+                            <button onClick={() => onStartLearn('三國典故')} className="flex items-center justify-center py-3 bg-amber-50 text-amber-900 rounded-xl hover:bg-amber-100 font-bold text-lg border-2 border-amber-200 transition-colors"><Icon path={icons.book} className="w-5 h-5 mr-2"/> 研讀</button>
+                            <button onClick={() => onStartQuiz('三國典故')} className="flex items-center justify-center py-3 bg-amber-600 text-white rounded-xl shadow-lg hover:bg-amber-700 font-bold text-lg transform active:scale-95 transition-all"><Icon path={icons.play} className="w-5 h-5 mr-2"/> 開始挑戰</button>
                         </div>
                     </div>
+                </div>
+                
+                <div className="mt-12 text-center text-gray-400 text-sm font-medium">
+                    &copy; 2025 成語大師三國版 • 互動式學習系統
                 </div>
             </div>
         );
@@ -205,62 +317,76 @@
         }) => {
             const totalPages = Math.ceil(items.length / ITEMS_PER_PAGE);
             const currentItems = items.slice(learnPage * ITEMS_PER_PAGE, (learnPage + 1) * ITEMS_PER_PAGE);
+            const scrollRef = useRef(null);
+
+            useEffect(() => {
+                if (scrollRef.current) scrollRef.current.scrollTop = 0;
+                window.scrollTo(0, 0);
+            }, [learnPage]);
 
             return (
-                <div className="max-w-4xl mx-auto">
-                    <div className="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col md:flex-row justify-between items-center sticky top-0 z-20 border-b border-amber-200 bg-opacity-95 backdrop-blur">
+                <div className="max-w-4xl mx-auto px-4 py-6" ref={scrollRef}>
+                    <div className="bg-white/90 backdrop-blur-md p-4 rounded-xl shadow-sm mb-8 flex flex-col md:flex-row justify-between items-center sticky top-0 z-30 border-b-2 border-amber-200">
                         <div className="flex items-center gap-4 mb-4 md:mb-0 w-full md:w-auto">
-                            <button onClick={onMenu} className="text-gray-500 hover:text-gray-800 flex items-center whitespace-nowrap"><Icon path={icons.menu} className="w-5 h-5 mr-1"/> 選單</button>
-                            <h2 className="text-xl font-bold flex items-center whitespace-nowrap text-amber-900">
-                                📖 三國典故學習
+                            <button onClick={onMenu} className="text-gray-500 hover:text-gray-900 flex items-center whitespace-nowrap bg-gray-100 px-3 py-2 rounded-lg font-bold"><Icon path={icons.menu} className="w-5 h-5 mr-2"/> 選單</button>
+                            <h2 className="text-2xl font-black flex items-center whitespace-nowrap text-amber-900">
+                                📖 典故卷軸
                             </h2>
                         </div>
                         
-                        <div className="flex overflow-x-auto max-w-full pb-2 md:pb-0 gap-2 mt-4 md:mt-0">
+                        <div className="flex overflow-x-auto max-w-full w-full md:w-auto pb-2 md:pb-0 gap-2 mt-2 md:mt-0 no-scrollbar">
                             {Array.from({ length: totalPages }).map((_, i) => {
                                 const isCompleted = completedDays.includes(`三國典故-${i}`);
-                                return (<button key={i} onClick={() => setLearnPage(i)} className={`px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all ${learnPage === i ? 'bg-amber-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>卷 {i + 1} {isCompleted && <span className="bg-green-400 text-white text-[10px] px-1 rounded-full">✓</span>}</button>);
+                                return (<button key={i} onClick={() => setLearnPage(i)} className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap flex items-center gap-2 transition-all flex-shrink-0 ${learnPage === i ? 'bg-amber-600 text-white shadow-md transform scale-105' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>卷 {i + 1} {isCompleted && <span className="bg-green-400 text-white text-[10px] px-1.5 py-0.5 rounded-full">✓</span>}</button>);
                             })}
                         </div>
                     </div>
-                    <div className="space-y-6">
-                        {currentItems.map(item => (
-                            <div key={item.id} className="bg-white rounded-xl p-6 shadow-sm border border-amber-100 relative group hover:shadow-md transition-all">
-                                <button onClick={() => toggleFavorite(item.id)} className="absolute top-4 right-4 text-gray-300 hover:text-red-500 z-10">
-                                    <Icon path={icons.heart} className="w-6 h-6" fill={favorites.includes(item.id) ? "currentColor" : "none"} className={`w-6 h-6 ${favorites.includes(item.id) ? "text-red-500" : ""}`} />
+                    
+                    <div className="space-y-8">
+                        {currentItems.map((item, idx) => (
+                            <div key={item.id} className="bg-white rounded-2xl p-6 md:p-8 shadow-sm border border-amber-100 relative group hover:shadow-lg transition-all animate-fade-in-up" style={{animationDelay: `${idx * 0.05}s`}}>
+                                <button onClick={() => toggleFavorite(item.id)} className="absolute top-6 right-6 text-gray-200 hover:text-red-500 z-10 transition-colors">
+                                    <Icon path={icons.heart} className={`w-8 h-8 drop-shadow-sm ${favorites.includes(item.id) ? "text-red-500" : ""}`} fill={favorites.includes(item.id) ? "currentColor" : "none"} />
                                 </button>
-                                <div className="flex flex-col md:flex-row gap-6">
+                                <div className="flex flex-col md:flex-row gap-8">
                                     <div className="flex-1">
-                                        <div className="flex items-baseline gap-3 mb-2 flex-wrap">
-                                            <span className="text-gray-400 font-mono text-sm">#{String(item.id).padStart(3,'0')}</span>
-                                            <h3 className="text-2xl font-bold text-gray-900">{item.term}</h3>
-                                            {item.person && <span className="text-xs px-2 py-1 rounded bg-amber-100 text-amber-800 font-bold border border-amber-200">👤 {item.person}</span>}
+                                        <div className="flex items-baseline gap-3 mb-3 flex-wrap pr-10">
+                                            <span className="text-amber-300 font-mono text-xl font-black">#{String(item.id).padStart(3,'0')}</span>
+                                            <h3 className="text-3xl font-black text-gray-900 tracking-tight">{item.term}</h3>
+                                            {item.person && <span className="text-sm px-3 py-1 rounded-full bg-amber-100 text-amber-900 font-bold border border-amber-200 self-center">👤 {item.person}</span>}
                                         </div>
-                                        <div className="bg-amber-50/50 p-3 rounded-lg text-amber-900 mb-4 text-sm font-medium border-l-4 border-amber-400">
+                                        <div className="bg-gradient-to-r from-amber-50 to-transparent p-4 rounded-xl text-amber-900 mb-6 text-lg font-medium border-l-8 border-amber-400">
                                             {item.definition}
                                         </div>
                                         
-                                        <div className="mb-4">
-                                            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">典故由來</span>
-                                            <p className="text-gray-700 text-sm leading-relaxed text-justify bg-gray-50 p-3 rounded">{item.story}</p>
+                                        <div className="mb-6">
+                                            <span className="text-xs font-black text-gray-400 uppercase tracking-widest block mb-2">典故由來</span>
+                                            <p className="text-gray-700 text-lg leading-relaxed text-justify">{item.story}</p>
                                         </div>
 
-                                        <div className="text-gray-600 leading-relaxed pl-3 italic border-l-2 border-gray-300">
-                                            例句：{item.sentence && item.sentence.split(item.term).map((part, i, arr) => (<React.Fragment key={i}>{part}{i < arr.length - 1 && <span className="text-amber-700 font-bold mx-1">{item.term}</span>}</React.Fragment>))}
+                                        <div className="text-gray-600 leading-relaxed pl-4 italic border-l-4 border-gray-300 text-lg bg-gray-50 py-2 pr-2 rounded-r-lg">
+                                            <span className="font-bold not-italic text-gray-400 mr-2 text-sm">例句</span>
+                                            {item.sentence && item.sentence.split(item.term).map((part, i, arr) => (<React.Fragment key={i}>{part}{i < arr.length - 1 && <span className="text-amber-700 font-bold mx-1 border-b-2 border-amber-700">{item.term}</span>}</React.Fragment>))}
                                         </div>
                                     </div>
                                     
-                                    {/* Image Section */}
-                                    <div className="w-full md:w-64 flex-shrink-0 flex flex-col items-center animate-fade-in-up">
-                                        <div className="bg-gray-100 rounded-xl p-2 border border-gray-200 w-full shadow-inner">
-                                            <div className="mb-2 rounded-lg overflow-hidden bg-white shadow-sm aspect-video relative group-img cursor-pointer">
+                                    {/* Image Section (16:9 Aspect Ratio Enforced) */}
+                                    <div className="w-full md:w-80 flex-shrink-0 flex flex-col items-center">
+                                        <div className="bg-white p-2 border-2 border-gray-100 rounded-2xl w-full shadow-sm">
+                                            <div className="rounded-xl overflow-hidden bg-gray-200 aspect-video relative group-img cursor-pointer w-full">
                                                 <img 
                                                     src={`images/p${String(item.id).padStart(3, '0')}.jpg`}
                                                     alt={`${item.term} 插圖`} 
+                                                    loading="lazy"
                                                     className="w-full h-full object-cover transition-transform duration-700 hover:scale-110"
                                                     onError={(e) => {
                                                         e.target.onerror = null; 
-                                                        e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="%23f3f4f6"/><text x="50%" y="50%" font-family="serif" font-size="16" text-anchor="middle" fill="%239ca3af" font-weight="bold">三國繪卷建置中...</text></svg>';
+                                                        e.target.parentNode.innerHTML = `
+                                                            <div class="w-full h-full flex flex-col items-center justify-center bg-gray-100 text-gray-400 p-4 text-center">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="mb-2 opacity-50"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                                                <span class="text-sm font-bold">三國繪卷 ${item.id}<br/>繪製中</span>
+                                                            </div>
+                                                        `;
                                                     }}
                                                 />
                                             </div>
@@ -270,7 +396,7 @@
                             </div>
                         ))}
                     </div>
-                    <div className="h-10"></div>
+                    <div className="h-20"></div>
                 </div>
             );
         };
@@ -283,36 +409,70 @@
             const isFinished = questions.length > 0 && questions.every(q => q.userAnswer !== null);
             const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
 
-            useEffect(() => { if (isFinished && !showResult) { onFinish(); setShowResult(true); } }, [isFinished]);
+            useEffect(() => { 
+                if (isFinished && !showResult) { 
+                    const timer = setTimeout(() => {
+                        onFinish(); 
+                        setShowResult(true); 
+                    }, 800); // 稍微延遲讓使用者看到最後一題的結果
+                    return () => clearTimeout(timer);
+                } 
+            }, [isFinished]);
 
             if (showResult) {
                  return (
-                    <div className="max-w-2xl mx-auto pt-10">
-                        <div className="bg-white rounded-2xl shadow-xl overflow-hidden text-center border border-amber-100">
-                            <div className="bg-amber-600 p-8 text-white bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"><h2 className="text-3xl font-bold mb-2 font-serif">戰役結束</h2><p className="opacity-90">主公 {userName} 辛苦了</p></div>
-                            <div className="p-8"><div className="text-6xl font-black text-amber-600 mb-4 font-mono">{score} <span className="text-2xl text-gray-400 font-medium">/ {questions.length}</span></div><div className="flex justify-center gap-4 mb-8"><div className="bg-green-50 text-green-700 px-4 py-2 rounded-lg font-bold border border-green-200">大捷 {score}</div><div className="bg-red-50 text-red-700 px-4 py-2 rounded-lg font-bold border border-red-200">失利 {questions.length - score}</div></div><div className="flex flex-col gap-3"><button onClick={onMenu} className="w-full py-3 bg-gray-100 hover:bg-gray-200 rounded-xl font-bold text-gray-700">返回大營</button><button onClick={onViewHistory} className="w-full py-3 bg-amber-600 hover:bg-amber-700 rounded-xl font-bold text-white shadow-lg">查看戰報</button></div></div>
+                    <div className="max-w-2xl mx-auto pt-10 px-4 animate-fade-in-up">
+                        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden text-center border-4 border-amber-400">
+                            <div className="bg-amber-500 p-10 text-white relative overflow-hidden">
+                                <div className="absolute inset-0 opacity-10 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>
+                                <h2 className="text-4xl font-black mb-2 font-serif relative z-10">戰役結束</h2>
+                                <p className="opacity-90 font-bold text-lg relative z-10">主公 {userName} 辛苦了</p>
+                            </div>
+                            <div className="p-10">
+                                <div className="text-8xl font-black text-amber-600 mb-2 font-mono tracking-tighter">{score} <span className="text-3xl text-gray-300 font-bold">/ {questions.length}</span></div>
+                                <div className="text-gray-400 font-bold mb-8 uppercase tracking-widest">本次戰功</div>
+                                
+                                <div className="flex justify-center gap-4 mb-10">
+                                    <div className="flex-1 bg-green-50 text-green-700 py-4 rounded-2xl font-black text-xl border-2 border-green-200">
+                                        大捷 {score}
+                                    </div>
+                                    <div className="flex-1 bg-red-50 text-red-700 py-4 rounded-2xl font-black text-xl border-2 border-red-200">
+                                        失利 {questions.length - score}
+                                    </div>
+                                </div>
+                                
+                                <div className="flex flex-col gap-4">
+                                    <button onClick={onMenu} className="w-full py-4 bg-gray-100 hover:bg-gray-200 rounded-2xl font-black text-gray-700 text-xl transition-colors">返回大營</button>
+                                    <button onClick={onViewHistory} className="w-full py-4 bg-amber-600 hover:bg-amber-700 rounded-2xl font-black text-white shadow-xl shadow-amber-200 text-xl transition-all transform active:scale-95">查看詳細戰報</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 );
             }
 
             return (
-                <div className="max-w-4xl mx-auto pb-20">
-                    <div className="bg-white p-4 rounded-xl shadow-sm mb-6 sticky top-0 z-20 flex flex-col md:flex-row justify-between items-center border-b-4 border-amber-500 bg-opacity-95 backdrop-blur">
-                        <div className="flex items-center gap-4 mb-4 md:mb-0 w-full md:w-auto">
-                            <button onClick={onMenu} className="text-gray-500 text-sm flex items-center hover:text-gray-800"><Icon path={icons.menu} className="w-4 h-4 mr-1"/> 撤退</button>
-                            <div className="font-bold text-lg flex items-center gap-4"><span>{userName}</span><span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-bold border border-amber-200">戰功: {score}</span></div>
-                            {combo > 1 && <div className="text-orange-600 font-black animate-pop text-xl" style={{textShadow: '1px 1px 0 #fff'}}>🔥 連破 x{combo}</div>}
+                <div className="max-w-4xl mx-auto pb-20 px-4">
+                    <div className="bg-white/95 backdrop-blur shadow-sm p-4 rounded-b-2xl mb-8 sticky top-0 z-30 border-t-4 border-amber-500 flex flex-col md:flex-row justify-between items-center transition-all">
+                        <div className="flex items-center gap-4 mb-4 md:mb-0 w-full md:w-auto justify-between md:justify-start">
+                            <button onClick={onMenu} className="text-gray-500 text-sm flex items-center hover:text-red-600 font-bold bg-gray-100 px-3 py-2 rounded-lg transition-colors"><Icon path={icons.left} className="w-4 h-4 mr-1"/> 撤退</button>
+                            <div className="font-bold text-xl flex items-center gap-3">
+                                <span>{userName}</span>
+                                <span className="bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm font-black border border-amber-200">戰功: {score}</span>
+                            </div>
+                            <div className="w-24 text-right">
+                                {combo > 1 && <div className="text-orange-600 font-black animate-pop text-2xl drop-shadow-sm inline-block">🔥 x{combo}</div>}
+                            </div>
                         </div>
-                        <div className="flex overflow-x-auto max-w-full pb-2 md:pb-0 gap-2 mt-4 md:mt-0">
+                        <div className="flex overflow-x-auto max-w-full w-full md:w-auto pb-1 md:pb-0 gap-2 no-scrollbar">
                              {Array.from({ length: totalPages }).map((_, i) => {
                                 const isCompleted = completedDays.includes(`三國典故-${i}`);
                                 return (
                                     <button key={i} onClick={() => onPageChange(i)} 
-                                        className={`px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap flex items-center gap-2 transition-all
-                                        ${quizPage === i ? 'bg-amber-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
-                                        卷 {i + 1}
-                                        {isCompleted && <span className="bg-green-400 text-white text-[10px] px-1 rounded-full">✓</span>}
+                                        className={`px-3 py-1.5 rounded-md text-xs font-bold whitespace-nowrap flex items-center gap-1 transition-all flex-shrink-0
+                                        ${quizPage === i ? 'bg-amber-600 text-white shadow-md' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+                                        卷{i + 1}
+                                        {isCompleted && <span className="bg-green-400 text-white text-[10px] w-3 h-3 flex items-center justify-center rounded-full">✓</span>}
                                     </button>
                                 );
                             })}
@@ -321,47 +481,68 @@
 
                     <div className="space-y-8">
                         {questions.map((q, idx) => (
-                            <div key={idx} className={`bg-white rounded-xl shadow-sm border-2 overflow-hidden transition-all duration-500 relative ${q.userAnswer === null ? 'border-transparent' : (q.isCorrect ? 'border-green-200 bg-green-50/30' : 'border-red-200 bg-red-50/30')}`}>
-                                <button onClick={() => toggleFavorite(q.id)} className={`absolute top-4 right-4 z-10 transition-colors ${favorites.includes(q.id) ? 'text-red-500' : 'text-gray-300 hover:text-red-500'}`}>
-                                    <Icon path={icons.heart} className="w-6 h-6" fill={favorites.includes(q.id) ? "currentColor" : "none"} />
+                            <div key={idx} className={`bg-white rounded-3xl shadow-sm border-4 overflow-hidden transition-all duration-500 relative ${q.userAnswer === null ? 'border-transparent shadow-md' : (q.isCorrect ? 'border-green-200 bg-green-50/20' : 'border-red-200 bg-red-50/20')}`}>
+                                <button onClick={() => toggleFavorite(q.id)} className={`absolute top-5 right-5 z-10 transition-colors p-2 rounded-full bg-white/50 hover:bg-white ${favorites.includes(q.id) ? 'text-red-500' : 'text-gray-300 hover:text-red-500'}`}>
+                                    <Icon path={icons.heart} className="w-7 h-7" fill={favorites.includes(q.id) ? "currentColor" : "none"} />
                                 </button>
-                                <div className="p-6 border-b border-gray-100">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <span className="font-black text-amber-800 tracking-wider text-sm bg-amber-100 px-2 py-1 rounded">問題 {idx + 1}</span>
-                                        {q.userAnswer !== null && (q.isCorrect ? <span className="text-green-600 font-bold flex items-center"><Icon path={icons.check} className="w-5 h-5 mr-1"/> 正確</span> : <span className="text-red-600 font-bold flex items-center"><Icon path={icons.alert} className="w-5 h-5 mr-1"/> 錯誤</span>)}
+                                <div className="p-8 border-b border-gray-100">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <span className="font-black text-amber-900 tracking-wider text-sm bg-amber-100 px-3 py-1 rounded-full border border-amber-200">問題 {idx + 1}</span>
+                                        {q.userAnswer !== null && (q.isCorrect ? <span className="text-green-600 font-black flex items-center text-lg animate-pop"><Icon path={icons.check} className="w-6 h-6 mr-1"/> 正確</span> : <span className="text-red-600 font-black flex items-center text-lg animate-shake"><Icon path={icons.alert} className="w-6 h-6 mr-1"/> 錯誤</span>)}
                                     </div>
-                                    <div className="text-2xl font-medium text-gray-800 leading-loose text-justify">{q.sentence && q.sentence.split(q.term).map((part, i, arr) => (<span key={i}>{part}{i < arr.length - 1 && <span className="inline-block w-28 border-b-4 border-gray-300 mx-1 align-bottom bg-gray-50 rounded px-2"></span>}</span>))}。</div>
+                                    <div className="text-2xl md:text-3xl font-bold text-gray-800 leading-relaxed text-justify">
+                                        {q.sentence && q.sentence.split(q.term).map((part, i, arr) => (
+                                            <span key={i}>
+                                                {part}
+                                                {i < arr.length - 1 && (
+                                                    <span className="inline-block w-32 border-b-4 border-gray-300 mx-2 align-baseline bg-gray-100 rounded px-2 h-8 relative top-1">
+                                                        {q.userAnswer !== null && !q.isCorrect && <span className="absolute -top-8 left-0 text-sm text-green-600 font-bold whitespace-nowrap">{q.term}</span>}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        ))}。
+                                    </div>
                                 </div>
-                                <div className="p-4 bg-gray-50/50">
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="p-6 bg-gray-50/50">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {q.options.map(opt => {
-                                            let btnClass = "p-4 rounded-xl border text-left font-bold text-xl transition-all relative overflow-hidden "; 
-                                            if (q.userAnswer === null) btnClass += "bg-white border-gray-200 hover:border-amber-400 hover:shadow-md cursor-pointer active:scale-[0.99] text-gray-700";
-                                            else { if (opt.id === q.id) btnClass += "bg-green-100 border-green-500 text-green-900 ring-2 ring-green-200"; else if (opt.id === q.userAnswer) btnClass += "bg-red-100 border-red-500 text-red-900"; else btnClass += "bg-gray-100 border-gray-200 text-gray-400 opacity-50"; }
-                                            return <button key={opt.id} onClick={() => onAnswer(idx, opt.id)} disabled={q.userAnswer !== null} className={btnClass}>{opt.term}{q.userAnswer !== null && opt.id === q.id && <div className="absolute right-3 top-1/2 -translate-y-1/2 text-green-600"><Icon path={icons.check} className="w-6 h-6"/></div>}</button>
+                                            let btnClass = "p-5 rounded-2xl border-2 text-left font-bold text-xl transition-all relative overflow-hidden "; 
+                                            if (q.userAnswer === null) btnClass += "bg-white border-gray-200 hover:border-amber-400 hover:shadow-md cursor-pointer active:scale-[0.98] text-gray-700";
+                                            else { 
+                                                if (opt.id === q.id) btnClass += "bg-green-100 border-green-500 text-green-800 ring-2 ring-green-200 shadow-md"; 
+                                                else if (opt.id === q.userAnswer) btnClass += "bg-red-100 border-red-500 text-red-800 opacity-80"; 
+                                                else btnClass += "bg-gray-50 border-gray-200 text-gray-300 opacity-40 grayscale"; 
+                                            }
+                                            return (
+                                                <button key={opt.id} onClick={() => onAnswer(idx, opt.id)} disabled={q.userAnswer !== null} className={btnClass}>
+                                                    {opt.term}
+                                                    {q.userAnswer !== null && opt.id === q.id && <div className="absolute right-4 top-1/2 -translate-y-1/2 text-green-600 bg-white rounded-full p-1"><Icon path={icons.check} className="w-5 h-5"/></div>}
+                                                </button>
+                                            )
                                         })}
                                     </div>
                                 </div>
                                 {q.userAnswer !== null && !q.isCorrect && (
-                                    <div className="p-6 bg-red-50 border-t border-red-100 animate-fade-in-up">
-                                        
-                                        <div className="mt-2 bg-white rounded-xl p-4 border border-red-100 flex flex-col md:flex-row gap-4 items-start shadow-sm">
-                                            <div className="w-full md:w-48 aspect-video rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
+                                    <div className="p-6 bg-red-50/50 border-t border-red-100 animate-fade-in-up">
+                                        <div className="bg-white rounded-xl p-5 border border-red-200 flex flex-col md:flex-row gap-5 items-start shadow-sm">
+                                            <div className="w-full md:w-40 aspect-video rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
                                                 <img 
                                                     src={`images/p${String(q.id).padStart(3, '0')}.jpg`}
                                                     className="w-full h-full object-cover" 
                                                     onError={(e) => {
                                                         e.target.onerror = null; 
-                                                        e.target.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><rect width="320" height="180" fill="%23f3f4f6"/><text x="50%" y="50%" font-family="serif" font-size="14" text-anchor="middle" fill="%239ca3af">圖片載入中...</text></svg>';
+                                                        e.target.parentNode.innerHTML = '<div class="w-full h-full flex items-center justify-center bg-gray-100 text-gray-300 text-xs">暫無圖片</div>';
                                                     }}
                                                 />
                                             </div>
                                             <div className="flex-1">
-                                                <div className="text-base font-bold text-red-800 mb-1 flex items-center gap-2">
-                                                    <Icon path={icons.book} className="w-5 h-5"/> 典故解析
+                                                <div className="text-sm font-black text-red-800 mb-1 flex items-center gap-2 uppercase tracking-wide">
+                                                    <Icon path={icons.book} className="w-4 h-4"/> 典故解析
                                                 </div>
-                                                <div className="text-2xl font-black text-gray-900 mb-2">{q.term}</div>
-                                                <div className="text-sm bg-red-100 text-red-900 px-2 py-1 rounded inline-block mb-2 font-bold">{q.person}</div>
+                                                <div className="flex items-center gap-2 mb-2">
+                                                    <div className="text-2xl font-black text-gray-900">{q.term}</div>
+                                                    <div className="text-xs bg-red-100 text-red-900 px-2 py-1 rounded font-bold border border-red-200">{q.person}</div>
+                                                </div>
                                                 <div className="text-gray-700 text-base leading-relaxed">{q.story}</div>
                                             </div>
                                         </div>
@@ -377,24 +558,39 @@
         const HistoryView = ({ historyLog, setHistoryLog, onMenu }) => {
             const [selectedLog, setSelectedLog] = useState(null);
             
-            // ... (History View logic mostly same, just slight styling tweaks for consistency)
-            const renderQuestionSentence = (sentence, term) => { if (!sentence) return <span className="text-gray-400 italic">（例句資料缺失）</span>; return sentence.split(term).map((part, i, arr) => (<span key={i}>{part}{i < arr.length - 1 && <span className="inline-block min-w-[3rem] border-b-2 border-gray-400 mx-1 align-bottom text-transparent select-none">____</span>}</span>)); };
-            const renderFullSentence = (sentence, term) => { if (!sentence) return ""; return sentence.split(term).map((part, i, arr) => (<span key={i}>{part}{i < arr.length - 1 && <span className="text-amber-600 font-bold mx-1">{term}</span>}</span>)); };
+            const renderQuestionSentence = (sentence, term) => { if (!sentence) return <span className="text-gray-400 italic">（例句資料缺失）</span>; return sentence.split(term).map((part, i, arr) => (<span key={i}>{part}{i < arr.length - 1 && <span className="inline-block min-w-[3rem] border-b-2 border-gray-400 mx-1 align-bottom text-transparent select-none bg-gray-200/50 rounded h-6"></span>}</span>)); };
 
             if (selectedLog) {
                 return (
-                    <div className="w-full max-w-6xl mx-auto bg-white min-h-screen p-8 shadow-2xl">
-                        <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-200">
-                            <button onClick={() => setSelectedLog(null)} className="flex items-center text-amber-700 hover:text-amber-900 font-bold text-lg"><Icon path={icons.left} className="w-6 h-6 mr-2"/> 返回戰報列表</button>
-                            <div className="text-right"><h2 className="text-3xl font-extrabold text-gray-800">戰役回放</h2><p className="text-gray-500 mt-1">{selectedLog.date} • 戰功 <span className="text-amber-600 font-bold text-xl">{selectedLog.score}</span> / {selectedLog.total}</p></div>
+                    <div className="w-full max-w-4xl mx-auto bg-white min-h-screen p-6 md:p-8 shadow-2xl animate-fade-in-up">
+                        <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-200 sticky top-0 bg-white z-20 pt-4">
+                            <button onClick={() => setSelectedLog(null)} className="flex items-center text-gray-500 hover:text-amber-800 font-bold text-lg px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"><Icon path={icons.left} className="w-6 h-6 mr-1"/> 返回</button>
+                            <div className="text-right">
+                                <h2 className="text-2xl font-black text-gray-800">戰役回放</h2>
+                                <p className="text-gray-500 text-sm mt-1 font-mono">{selectedLog.date}</p>
+                            </div>
                         </div>
                         <div className="space-y-6">
+                            <div className="flex justify-center mb-8">
+                                <div className="text-center">
+                                    <div className="text-sm text-gray-400 font-bold uppercase mb-1">總得分</div>
+                                    <div className="text-5xl font-black text-amber-600">{selectedLog.score} <span className="text-2xl text-gray-300">/ {selectedLog.total}</span></div>
+                                </div>
+                            </div>
                             {selectedLog.details.map((d, i) => (
-                                <div key={i} className={`p-6 rounded-xl border-l-4 shadow-sm ${d.isCorrect ? 'border-green-400 bg-green-50/50' : 'border-red-400 bg-red-50/50'}`}>
-                                    <div className="mb-2 font-bold text-gray-800 text-lg">{renderQuestionSentence(d.sentence, d.term)}</div>
-                                    <div className="text-sm text-gray-500 flex items-center gap-4">
-                                        <span>您的選擇: <span className={d.isCorrect ? "text-green-600 font-bold" : "text-red-600 line-through"}>{d.userAnswer}</span></span>
-                                        {!d.isCorrect && <span className="text-green-700 font-bold">正解: {d.correctAnswer}</span>}
+                                <div key={i} className={`p-6 rounded-2xl border-l-8 shadow-sm ${d.isCorrect ? 'border-green-400 bg-green-50/30' : 'border-red-400 bg-red-50/30'}`}>
+                                    <div className="mb-3 font-bold text-gray-800 text-xl leading-relaxed">{renderQuestionSentence(d.sentence, d.term)}</div>
+                                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 bg-white/50 p-3 rounded-lg">
+                                        <div className="flex items-center">
+                                            <span className="text-gray-400 text-xs font-bold uppercase mr-2">您的選擇</span>
+                                            <span className={`text-lg font-bold ${d.isCorrect ? "text-green-700" : "text-red-600 line-through decoration-2"}`}>{d.userAnswer}</span>
+                                        </div>
+                                        {!d.isCorrect && (
+                                            <div className="flex items-center">
+                                                <span className="text-gray-400 text-xs font-bold uppercase mr-2">正解</span>
+                                                <span className="text-green-700 text-lg font-black">{d.correctAnswer}</span>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -404,33 +600,117 @@
                 )
             }
             return (
-                <div className="max-w-4xl mx-auto">
-                    <div className="flex items-center mb-6"><button onClick={onMenu} className="mr-4 p-2 bg-white rounded-full shadow hover:bg-gray-100"><Icon path={icons.left} className="w-5 h-5"/></button><h2 className="text-2xl font-bold text-gray-800">📜 歷史戰績</h2></div>
-                    {historyLog.length === 0 ? <div className="text-center py-20 text-gray-400">尚無戰役紀錄</div> : (
-                        <div className="bg-white rounded-xl shadow-sm overflow-hidden border border-gray-200"><table className="w-full text-left"><thead className="bg-amber-50 border-b border-amber-100"><tr><th className="p-4 font-bold text-amber-900">日期</th><th className="p-4 font-bold text-amber-900">主公</th><th className="p-4 font-bold text-amber-900">戰功</th><th className="p-4 font-bold text-amber-900">操作</th></tr></thead><tbody className="divide-y divide-gray-100">{historyLog.map(log => (<tr key={log.id} className="hover:bg-amber-50/50 transition-colors"><td className="p-4 text-gray-500 text-sm">{log.date}</td><td className="p-4 font-medium">{log.userName}</td><td className="p-4"><span className={`font-bold px-2 py-1 rounded ${log.score === log.total ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>{log.score}/{log.total}</span></td><td className="p-4"><button onClick={() => setSelectedLog(log)} className="text-amber-600 hover:text-amber-800 text-sm font-bold">查看</button></td></tr>))}</tbody></table></div>
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                    <div className="flex items-center mb-8">
+                        <button onClick={onMenu} className="mr-4 p-3 bg-white rounded-xl shadow border border-gray-200 hover:bg-gray-50"><Icon path={icons.left} className="w-5 h-5"/></button>
+                        <h2 className="text-3xl font-black text-gray-800 flex items-center gap-3">📜 歷史戰績 <span className="text-sm font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">{historyLog.length} 場</span></h2>
+                    </div>
+                    {historyLog.length === 0 ? (
+                        <div className="text-center py-32 text-gray-400 border-2 border-dashed border-gray-200 rounded-3xl">
+                            <Icon path={icons.history} className="w-16 h-16 mx-auto mb-4 text-gray-300"/>
+                            <p className="text-xl font-bold">尚無戰役紀錄</p>
+                            <p className="text-sm mt-2">快去挑戰吧！</p>
+                        </div>
+                    ) : (
+                        <div className="bg-white rounded-3xl shadow-lg overflow-hidden border border-gray-200">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-amber-50 border-b border-amber-100">
+                                    <tr>
+                                        <th className="p-5 font-black text-amber-900 text-sm uppercase tracking-wider hidden md:table-cell">日期</th>
+                                        <th className="p-5 font-black text-amber-900 text-sm uppercase tracking-wider">主公</th>
+                                        <th className="p-5 font-black text-amber-900 text-sm uppercase tracking-wider">戰功</th>
+                                        <th className="p-5 font-black text-amber-900 text-sm uppercase tracking-wider text-right">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {historyLog.map(log => (
+                                        <tr key={log.id} className="hover:bg-amber-50/50 transition-colors group">
+                                            <td className="p-5 text-gray-500 text-sm font-mono hidden md:table-cell">{log.date.split(',')[0]}</td>
+                                            <td className="p-5 font-bold text-gray-800">
+                                                <div className="md:hidden text-xs text-gray-400 mb-1">{log.date.split(',')[0]}</div>
+                                                {log.userName}
+                                            </td>
+                                            <td className="p-5">
+                                                <span className={`font-black px-3 py-1 rounded-lg text-sm ${log.score === log.total ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-gray-100 text-gray-700 border border-gray-200'}`}>
+                                                    {log.score} <span className="text-gray-400 font-normal">/ {log.total}</span>
+                                                </span>
+                                            </td>
+                                            <td className="p-5 text-right">
+                                                <button onClick={() => setSelectedLog(log)} className="text-amber-600 hover:text-white hover:bg-amber-600 px-4 py-2 rounded-lg text-sm font-bold transition-all border border-amber-200 hover:border-amber-600">
+                                                    查看
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     )}
-                     <div className="text-center mt-8"><button onClick={() => {if(confirm('確定焚毀所有戰報？')) setHistoryLog([])}} className="text-red-400 hover:text-red-600 text-sm flex items-center justify-center mx-auto"><Icon path={icons.trash} className="w-4 h-4 mr-1"/> 清除所有紀錄</button></div>
+                     <div className="text-center mt-12 pb-10">
+                         <button onClick={() => {if(confirm('確定焚毀所有戰報？此操作無法復原！')) setHistoryLog([])}} className="text-red-400 hover:text-red-600 text-sm flex items-center justify-center mx-auto hover:bg-red-50 px-4 py-2 rounded-lg transition-colors">
+                             <Icon path={icons.trash} className="w-4 h-4 mr-2"/> 清除所有紀錄
+                        </button>
+                    </div>
                 </div>
             );
         };
 
         const MistakeView = ({ mistakes, mistakeLog, setMistakeLog, onMenu, onReviewAll }) => {
             return (
-                <div className="max-w-4xl mx-auto">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center"><button onClick={onMenu} className="mr-4 p-2 bg-white rounded-full shadow hover:bg-gray-100"><Icon path={icons.left} className="w-5 h-5"/></button><h2 className="text-2xl font-bold text-gray-800 flex items-center"><Icon path={icons.alert} className="w-6 h-6 text-red-500 mr-2"/> 錯題軍令狀</h2></div>
-                        {mistakes.length > 0 && <button onClick={onReviewAll} className="px-6 py-2 bg-red-600 text-white rounded-lg shadow hover:bg-red-700 font-bold animate-pulse">立即複習 ({mistakes.length})</button>}
+                <div className="max-w-4xl mx-auto px-4 py-8">
+                    <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
+                        <div className="flex items-center">
+                            <button onClick={onMenu} className="mr-4 p-3 bg-white rounded-xl shadow border border-gray-200 hover:bg-gray-50"><Icon path={icons.left} className="w-5 h-5"/></button>
+                            <h2 className="text-3xl font-black text-gray-800 flex items-center"><Icon path={icons.alert} className="w-8 h-8 text-red-500 mr-3"/> 錯題軍令狀</h2>
+                        </div>
+                        {mistakes.length > 0 && (
+                            <button onClick={onReviewAll} className="w-full md:w-auto px-8 py-3 bg-red-600 text-white rounded-xl shadow-lg hover:bg-red-700 font-bold animate-pulse flex items-center justify-center">
+                                <Icon path={icons.play} className="w-5 h-5 mr-2" fill="currentColor"/>
+                                立即複習 ({mistakes.length})
+                            </button>
+                        )}
                     </div>
-                    {mistakes.length === 0 ? <div className="text-center py-20 bg-white rounded-xl shadow-sm"><div className="text-6xl mb-4">🎉</div><p className="text-xl text-gray-600 font-bold">恭喜！目前無錯題</p></div> : (
-                        <div className="grid gap-4">{mistakes.map(item => { const log = mistakeLog.find(m => m.id === item.id); return (<div key={item.id} className="bg-white p-5 rounded-xl shadow-sm border-l-4 border-red-400 flex justify-between items-center"><div><h3 className="text-xl font-bold text-gray-800 mb-1">{item.term} <span className="text-xs text-red-500 bg-red-50 px-2 rounded">錯誤 {log.count} 次</span></h3><p className="text-gray-500 text-sm">{item.definition}</p></div><div className="text-xs text-gray-400 text-right">最後錯誤:<br/>{new Date(log.lastMissed).toLocaleDateString()}</div></div>); })}</div>
+
+                    {mistakes.length === 0 ? (
+                        <div className="text-center py-32 bg-white rounded-3xl shadow-sm border border-green-100">
+                            <div className="text-8xl mb-6">🎉</div>
+                            <p className="text-2xl text-gray-800 font-black mb-2">太棒了！</p>
+                            <p className="text-gray-500">目前沒有錯題紀錄，繼續保持！</p>
+                        </div>
+                    ) : (
+                        <div className="grid gap-4">
+                            {mistakes.map(item => { 
+                                const log = mistakeLog.find(m => m.id === item.id); 
+                                return (
+                                    <div key={item.id} className="bg-white p-6 rounded-2xl shadow-sm border-l-8 border-red-400 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 hover:shadow-md transition-shadow">
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <h3 className="text-2xl font-black text-gray-800">{item.term}</h3>
+                                                <span className="text-xs font-bold text-red-600 bg-red-100 px-2 py-1 rounded-md border border-red-200">錯誤 {log.count} 次</span>
+                                            </div>
+                                            <p className="text-gray-600 text-base font-medium">{item.definition}</p>
+                                        </div>
+                                        <div className="text-xs text-gray-400 text-right md:w-32 flex-shrink-0 font-mono">
+                                            最後錯誤:<br/>{new Date(log.lastMissed).toLocaleDateString()}
+                                        </div>
+                                    </div>
+                                ); 
+                            })}
+                        </div>
                     )}
-                    {mistakes.length > 0 && <div className="text-center mt-8"><button onClick={() => {if(confirm('確定清空錯題本？')) { setMistakeLog([]); localStorage.setItem('idiomMistakes', '[]'); } }} className="text-gray-400 hover:text-gray-600 text-sm">清空錯題本</button></div>}
+                    
+                    {mistakes.length > 0 && (
+                        <div className="text-center mt-12 pb-10">
+                            <button onClick={() => {if(confirm('確定清空錯題本？這將移除所有錯誤紀錄。')) { setMistakeLog([]); localStorage.setItem('idiomMistakes', '[]'); } }} className="text-gray-400 hover:text-gray-600 text-sm hover:bg-gray-100 px-4 py-2 rounded-lg transition-colors">
+                                清空錯題本
+                            </button>
+                        </div>
+                    )}
                 </div>
             );
         };
 
         const App = () => {
-            // Using the new data source directly
             const parsedData = useMemo(() => ({ "三國典故": THREE_KINGDOMS_DATA }), []);
             const allItems = THREE_KINGDOMS_DATA;
             const categories = ["三國典故"];
@@ -443,6 +723,15 @@
             const [isLocked, setIsLocked] = useState(false);
             const [lastUser, setLastUser] = useState(() => localStorage.getItem('idiomLastUser'));
 
+            // 狀態初始化與 F5 保護 (Session Restore)
+            useEffect(() => {
+                const savedSessionUser = sessionStorage.getItem('idiomSessionUser');
+                if (savedSessionUser) {
+                    setUserName(savedSessionUser);
+                    setIsLocked(true);
+                }
+            }, []);
+
             const [favorites, setFavorites] = useState(() => JSON.parse(localStorage.getItem('idiomFavorites')) || []);
             const [historyLog, setHistoryLog] = useState(() => JSON.parse(localStorage.getItem('idiomHistory')) || []);
             const [mistakeLog, setMistakeLog] = useState(() => JSON.parse(localStorage.getItem('idiomMistakes')) || []);
@@ -454,12 +743,12 @@
             const [combo, setCombo] = useState(0);
             const [quizPage, setQuizPage] = useState(0);
 
+            // 存儲副作用
             useEffect(() => { localStorage.setItem('idiomFavorites', JSON.stringify(favorites)); }, [favorites]);
             useEffect(() => { localStorage.setItem('idiomHistory', JSON.stringify(historyLog)); }, [historyLog]);
             useEffect(() => { 
-                if (mistakeLog.length > 0) {
-                    localStorage.setItem('idiomMistakes', JSON.stringify(mistakeLog)); 
-                }
+                if (mistakeLog.length > 0) localStorage.setItem('idiomMistakes', JSON.stringify(mistakeLog)); 
+                else if (mistakeLog.length === 0 && localStorage.getItem('idiomMistakes')) localStorage.removeItem('idiomMistakes');
             }, [mistakeLog]);
             useEffect(() => { localStorage.setItem('idiomCompletedDays', JSON.stringify(completedDays)); }, [completedDays]);
             
@@ -469,7 +758,10 @@
                     setIsLocked(true);
                     setShowNameWarning(false);
                     localStorage.setItem('idiomLastUser', userName);
+                    sessionStorage.setItem('idiomSessionUser', userName); // Session Storage for F5 protection
                     setLastUser(userName);
+                } else {
+                    setShowNameWarning(true);
                 }
             };
 
@@ -479,36 +771,44 @@
                     setUserName(storedUser);
                     setIsLocked(true);
                     setShowNameWarning(false);
+                    sessionStorage.setItem('idiomSessionUser', storedUser);
                 }
             };
 
             const handleLogout = () => {
-                setIsLocked(false);
-                setUserName('');
+                if(confirm('確定要登出嗎？')) {
+                    setIsLocked(false);
+                    setUserName('');
+                    sessionStorage.removeItem('idiomSessionUser');
+                }
             };
 
             const handleDeleteUser = () => {
-                if (confirm('確定要刪除這位使用者的所有資料嗎？')) {
-                    if (confirm('這將會清除所有學習紀錄、收藏和錯題本，且無法復原！確定要執行嗎？')) {
+                if (confirm('【危險操作】確定要刪除這位使用者的所有資料嗎？')) {
+                    if (confirm('再次確認：這將會清除所有學習紀錄、收藏和錯題本，且無法復原！確定要執行嗎？')) {
                         localStorage.removeItem('idiomLastUser');
                         localStorage.removeItem('idiomFavorites');
                         localStorage.removeItem('idiomHistory');
                         localStorage.removeItem('idiomMistakes');
                         localStorage.removeItem('idiomCompletedDays');
+                        sessionStorage.removeItem('idiomSessionUser');
                         
                         setFavorites([]);
                         setHistoryLog([]);
                         setMistakeLog([]);
                         setCompletedDays([]);
                         setLastUser(null);
-                        handleLogout();
+                        setIsLocked(false);
+                        setUserName('');
                     }
                 }
             };
 
-            const toggleFavorite = (id) => { setFavorites(prev => prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]); };
+            const toggleFavorite = (id) => { 
+                setFavorites(prev => prev.includes(id) ? prev.filter(fid => fid !== id) : [...prev, id]); 
+            };
             
-            // Sound Effects (Keep same as before)
+            // Sound Effects
             const playSoundEffect = (type) => {
                  try {
                     const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -522,7 +822,7 @@
                         osc2.type = 'sine'; osc2.frequency.setValueAtTime(659.25, now + 0.1); gain2.gain.setValueAtTime(0.1, now + 0.1); gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6); osc2.connect(gain2); gain2.connect(ctx.destination); osc2.start(now + 0.1); osc2.stop(now + 0.6);
                     } else {
                         const osc = ctx.createOscillator(); const gain = ctx.createGain();
-                        osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.2); gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.2);
+                        osc.type = 'triangle'; osc.frequency.setValueAtTime(150, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.3); gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3); osc.connect(gain); gain.connect(ctx.destination); osc.start(now); osc.stop(now + 0.3);
                     }
                 } catch (e) { console.error("Audio play failed", e); }
             };
@@ -534,19 +834,31 @@
                 if (isMistakeMode) {
                     const mistakeIds = mistakeLog.map(m => m.id);
                     questions = allItems.filter(i => mistakeIds.includes(i.id));
+                    // 錯題本隨機出題，不分頁
                     questions.sort(() => Math.random() - 0.5);
                 } else {
                     let sourceItems = category === '收藏夾' ? allItems.filter(i => favorites.includes(i.id)) : parsedData["三國典故"];
-                    if (!sourceItems) return; 
+                    if (!sourceItems || sourceItems.length === 0) {
+                         alert("此分類尚無內容，請先進行收藏或選擇其他分類！");
+                         return;
+                    }
+                    // 分頁邏輯
                     const start = pageIdx * ITEMS_PER_PAGE;
+                    // 如果是收藏夾模式，且該頁沒資料(可能被刪除)，則回到第一頁
+                    if (start >= sourceItems.length && pageIdx > 0) {
+                         const correctPage = Math.floor((sourceItems.length - 1) / ITEMS_PER_PAGE);
+                         handleStartQuiz(category, correctPage, isMistakeMode);
+                         return;
+                    }
                     questions = sourceItems.slice(start, start + ITEMS_PER_PAGE);
                 }
 
                 if (questions.length === 0) {
-                    alert(isMistakeMode ? "目前沒有錯題紀錄！" : "此頁面無題目");
+                    alert(isMistakeMode ? "太棒了！目前沒有錯題需要複習！" : "此頁面無題目");
                     return;
                 }
 
+                // Generate Options
                 const quizSet = questions.map(item => {
                     let pool = allItems.filter(i => i.id !== item.id);
                     const distractors = pool.sort(() => Math.random() - 0.5).slice(0, 3);
@@ -560,12 +872,13 @@
                 setQuizPage(pageIdx);
                 setActiveCategory(isMistakeMode ? '錯題本' : category);
                 setCurrentMode('quiz');
+                window.scrollTo(0,0);
             };
 
             const handleAnswer = (qIndex, selectedOptionId) => {
                 const newQuestions = [...quizQuestions];
                 const q = newQuestions[qIndex];
-                if (q.userAnswer !== null) return;
+                if (q.userAnswer !== null) return; // Prevent re-answer
 
                 const isCorrect = selectedOptionId === q.id;
                 q.userAnswer = selectedOptionId;
@@ -575,14 +888,22 @@
                     setQuizScore(s => s + 1);
                     setCombo(c => c + 1);
                     playSoundEffect('correct');
-                    confetti({ particleCount: 50, spread: 60, origin: { y: 0.7 } });
+                    if (combo > 0 && (combo + 1) % 5 === 0) {
+                         confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+                    } else {
+                         confetti({ particleCount: 30, spread: 50, origin: { y: 0.7 }, scalar: 0.7 });
+                    }
+                    
+                    // 如果答對了錯題本中的題目，可以考慮將其移除（這裡採保守策略：先保留，由使用者手動清空或下次再測）
+                    // 若要自動移除：setMistakeLog(prev => prev.filter(m => m.id !== q.id));
                 } else {
                     setCombo(0);
                     playSoundEffect('wrong');
                     setMistakeLog(prev => {
                         const existing = prev.find(m => m.id === q.id);
-                        const newLog = existing ? prev.map(m => m.id === q.id ? { ...m, count: m.count + 1, lastMissed: new Date().toISOString() } : m) : [...prev, { id: q.id, count: 1, lastMissed: new Date().toISOString() }];
-                        localStorage.setItem('idiomMistakes', JSON.stringify(newLog)); 
+                        const newLog = existing 
+                            ? prev.map(m => m.id === q.id ? { ...m, count: m.count + 1, lastMissed: new Date().toISOString() } : m) 
+                            : [...prev, { id: q.id, count: 1, lastMissed: new Date().toISOString() }];
                         return newLog;
                     });
                 }
@@ -590,17 +911,37 @@
             };
 
             const finishQuiz = () => {
-                const record = { id: Date.now(), date: new Date().toLocaleString(), userName, score: quizScore, total: quizQuestions.length, category: activeCategory, details: quizQuestions.map(q => ({ term: q.term, definition: q.definition, sentence: q.sentence, isCorrect: q.isCorrect, userAnswer: q.options.find(o => o.id === q.userAnswer)?.term || "未作答", correctAnswer: q.term })) };
+                const record = { 
+                    id: Date.now(), 
+                    date: new Date().toLocaleString(), 
+                    userName, 
+                    score: quizScore, 
+                    total: quizQuestions.length, 
+                    category: activeCategory, 
+                    details: quizQuestions.map(q => ({ 
+                        term: q.term, 
+                        definition: q.definition, 
+                        sentence: q.sentence, 
+                        isCorrect: q.isCorrect, 
+                        userAnswer: q.options.find(o => o.id === q.userAnswer)?.term || "未作答", 
+                        correctAnswer: q.term 
+                    })) 
+                };
                 setHistoryLog(prev => [record, ...prev]);
-                if (activeCategory !== '收藏夾' && activeCategory !== '錯題本') { const key = `${activeCategory}-${quizPage}`; if (!completedDays.includes(key)) { setCompletedDays(prev => [...prev, key]); } }
+                if (activeCategory !== '收藏夾' && activeCategory !== '錯題本') { 
+                    const key = `${activeCategory}-${quizPage}`; 
+                    if (!completedDays.includes(key) && quizScore > 0) { // 至少得一分才算完成
+                        setCompletedDays(prev => [...prev, key]); 
+                    } 
+                }
             };
 
             return (
-                <div className="min-h-screen bg-[#fcf9f2] text-gray-900 p-4 md:p-8 flex flex-col font-sans">
+                <div className="min-h-screen bg-[#fcf9f2] text-gray-900 font-sans selection:bg-amber-200 selection:text-amber-900">
                     {currentMode === 'menu' && (
                         <MenuView 
                             userName={userName} setUserName={setUserName} showNameWarning={showNameWarning}
-                            mistakeLog={mistakeLog} favorites={favorites} categories={categories} parsedData={parsedData}
+                            mistakeLog={mistakeLog} favorites={favorites} parsedData={parsedData}
                             onStartLearn={(cat) => { setActiveCategory(cat); setLearnPage(0); setCurrentMode('learn'); }}
                             onStartQuiz={(cat) => handleStartQuiz(cat, 0)}
                             onViewHistory={() => setCurrentMode('history')}

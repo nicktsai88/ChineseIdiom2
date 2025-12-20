@@ -828,7 +828,7 @@
                     
                     {mistakes.length > 0 && (
                         <div className="text-center mt-12 pb-10">
-                            <button onClick={() => {if(confirm('確定清空錯題本？這將移除所有錯誤紀錄。')) { setMistakeLog([]); localStorage.setItem('ChineseIdiom2Mistakes', '[]'); } }} className="text-gray-400 hover:text-gray-600 text-sm hover:bg-gray-100/80 px-4 py-2 rounded-lg transition-colors">
+                            <button onClick={() => {if(confirm('確定清空錯題本？這將移除所有錯誤紀錄。')) { setMistakeLog([]); localStorage.setItem('idiomMistakes', '[]'); } }} className="text-gray-400 hover:text-gray-600 text-sm hover:bg-gray-100/80 px-4 py-2 rounded-lg transition-colors">
                                 清空錯題本
                             </button>
                         </div>
@@ -848,7 +848,7 @@
             
             const [userName, setUserName] = useState('');
             const [isLocked, setIsLocked] = useState(false);
-            const [lastUser, setLastUser] = useState(() => localStorage.getItem('ChineseIdiom2LastUser'));
+            const [lastUser, setLastUser] = useState(() => localStorage.getItem('idiomLastUser'));
 
             // 背景圖狀態
             const [bgImage, setBgImage] = useState('');
@@ -861,17 +861,17 @@
 
             // 狀態初始化與 F5 保護 (Session Restore)
             useEffect(() => {
-                const savedSessionUser = sessionStorage.getItem('ChineseIdiom2SessionUser');
+                const savedSessionUser = sessionStorage.getItem('idiomSessionUser');
                 if (savedSessionUser) {
                     setUserName(savedSessionUser);
                     setIsLocked(true);
                 }
             }, []);
 
-            const [favorites, setFavorites] = useState(() => JSON.parse(localStorage.getItem('ChineseIdiom2Favorites')) || []);
-            const [historyLog, setHistoryLog] = useState(() => JSON.parse(localStorage.getItem('ChineseIdiom2History')) || []);
-            const [mistakeLog, setMistakeLog] = useState(() => JSON.parse(localStorage.getItem('ChineseIdiom2Mistakes')) || []);
-            const [completedDays, setCompletedDays] = useState(() => JSON.parse(localStorage.getItem('ChineseIdiom2CompletedDays')) || []);
+            const [favorites, setFavorites] = useState(() => JSON.parse(localStorage.getItem('idiomFavorites')) || []);
+            const [historyLog, setHistoryLog] = useState(() => JSON.parse(localStorage.getItem('idiomHistory')) || []);
+            const [mistakeLog, setMistakeLog] = useState(() => JSON.parse(localStorage.getItem('idiomMistakes')) || []);
+            const [completedDays, setCompletedDays] = useState(() => JSON.parse(localStorage.getItem('idiomCompletedDays')) || []);
             const [learnPage, setLearnPage] = useState(0);
 
             const [quizQuestions, setQuizQuestions] = useState([]);
@@ -880,21 +880,21 @@
             const [quizPage, setQuizPage] = useState(0);
 
             // 存儲副作用
-            useEffect(() => { localStorage.setItem('ChineseIdiom2Favorites', JSON.stringify(favorites)); }, [favorites]);
-            useEffect(() => { localStorage.setItem('ChineseIdiom2History', JSON.stringify(historyLog)); }, [historyLog]);
+            useEffect(() => { localStorage.setItem('idiomFavorites', JSON.stringify(favorites)); }, [favorites]);
+            useEffect(() => { localStorage.setItem('idiomHistory', JSON.stringify(historyLog)); }, [historyLog]);
             useEffect(() => { 
-                if (mistakeLog.length > 0) localStorage.setItem('ChineseIdiom2Mistakes', JSON.stringify(mistakeLog)); 
-                else if (mistakeLog.length === 0 && localStorage.getItem('ChineseIdiom2Mistakes')) localStorage.removeItem('ChineseIdiom2Mistakes');
+                if (mistakeLog.length > 0) localStorage.setItem('idiomMistakes', JSON.stringify(mistakeLog)); 
+                else if (mistakeLog.length === 0 && localStorage.getItem('idiomMistakes')) localStorage.removeItem('idiomMistakes');
             }, [mistakeLog]);
-            useEffect(() => { localStorage.setItem('ChineseIdiom2CompletedDays', JSON.stringify(completedDays)); }, [completedDays]);
+            useEffect(() => { localStorage.setItem('idiomCompletedDays', JSON.stringify(completedDays)); }, [completedDays]);
             
             // Login Handlers
             const handleLogin = () => {
                 if (userName.trim()) {
                     setIsLocked(true);
                     setShowNameWarning(false);
-                    localStorage.setItem('ChineseIdiom2LastUser', userName);
-                    sessionStorage.setItem('ChineseIdiom2SessionUser', userName); 
+                    localStorage.setItem('idiomLastUser', userName);
+                    sessionStorage.setItem('idiomSessionUser', userName); 
                     setLastUser(userName);
                 } else {
                     setShowNameWarning(true);
@@ -902,12 +902,12 @@
             };
 
             const handleQuickLogin = () => {
-                const storedUser = localStorage.getItem('ChineseIdiom2LastUser');
+                const storedUser = localStorage.getItem('idiomLastUser');
                 if (storedUser) {
                     setUserName(storedUser);
                     setIsLocked(true);
                     setShowNameWarning(false);
-                    sessionStorage.setItem('ChineseIdiom2SessionUser', storedUser);
+                    sessionStorage.setItem('idiomSessionUser', storedUser);
                 }
             };
 
@@ -915,19 +915,19 @@
                 if(confirm('確定要登出嗎？')) {
                     setIsLocked(false);
                     setUserName('');
-                    sessionStorage.removeItem('ChineseIdiom2SessionUser');
+                    sessionStorage.removeItem('idiomSessionUser');
                 }
             };
 
             const handleDeleteUser = () => {
                 if (confirm('【危險操作】確定要刪除這位使用者的所有資料嗎？')) {
                     if (confirm('再次確認：這將會清除所有學習紀錄、收藏和錯題本，且無法復原！確定要執行嗎？')) {
-                        localStorage.removeItem('ChineseIdiom2LastUser');
-                        localStorage.removeItem('ChineseIdiom2Favorites');
-                        localStorage.removeItem('ChineseIdiom2History');
-                        localStorage.removeItem('ChineseIdiom2Mistakes');
-                        localStorage.removeItem('ChineseIdiom2CompletedDays');
-                        sessionStorage.removeItem('ChineseIdiom2SessionUser');
+                        localStorage.removeItem('idiomLastUser');
+                        localStorage.removeItem('idiomFavorites');
+                        localStorage.removeItem('idiomHistory');
+                        localStorage.removeItem('idiomMistakes');
+                        localStorage.removeItem('idiomCompletedDays');
+                        sessionStorage.removeItem('idiomSessionUser');
                         
                         setFavorites([]);
                         setHistoryLog([]);
